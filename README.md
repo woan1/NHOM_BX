@@ -2,9 +2,10 @@
 
 ## 👥 Thông Tin Thành Viên
 * **Thành viên 1 (Trưởng nhóm):** Nguyễn Thanh Quan - MSSV: 2200007066 (Vai trò: Fullstack / Quản lý chung)
-* **Thành viên 2:** Võ Tấn Phát - MSSV: 87654321 (Vai trò: Frontend)
-* **Thành viên 3:** Đặng Nguyễn Hữu Trí - MSSV: 13572468 (Vai trò: Backend & Database)
-
+* **Thành viên 2:** Võ Tấn Phát - MSSV: 
+* **Thành viên 3:** Đặng Nguyễn Hữu Trí - MSSV:
+* **Thành viên 3:** Nguyễn Lê Gia Bảo - MSSV:
+* **Thành viên 3:** Trần Tuấn Anh - MSSV:
 ---
 
 ## 📅 Nhật Ký Nội Dung Từng Buổi (Sessions Log)
