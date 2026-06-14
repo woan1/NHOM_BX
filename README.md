@@ -4,8 +4,8 @@
 * **Thành viên 1 (Trưởng nhóm):** Nguyễn Thanh Quan - MSSV: 2200007066 (Vai trò: Fullstack / Quản lý chung)
 * **Thành viên 2:** Võ Tấn Phát - MSSV: 
 * **Thành viên 3:** Đặng Nguyễn Hữu Trí - MSSV:
-* **Thành viên 3:** Nguyễn Lê Gia Bảo - MSSV:
-* **Thành viên 3:** Trần Tuấn Anh - MSSV:
+* **Thành viên 4:** Nguyễn Lê Gia Bảo - MSSV:
+* **Thành viên 5:** Trần Tuấn Anh - MSSV:
 ---
 
 ## 📅 Nhật Ký Nội Dung Từng Buổi (Sessions Log)
