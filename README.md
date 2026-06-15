@@ -21,7 +21,7 @@ Frontend:** Browser sử dụng framework **React**.
 Backend:** Server sử dụng **FastAPI**, kết nối qua giao thức **HTTP**.
 Database:** Hệ quản trị cơ sở dữ liệu **PostgreSQL**, tương tác bằng ngôn ngữ **SQL**.
       
-### 🔹 Session 02 (Ngày 19/06/2026)
+### 🔹 Session 02 (Ngày 12/06/2026)
 * **Nội dung:** ...
 Tìm hiểu các kiến thức cơ bản của React và ES6.
 Học cách sử dụng let, const, Arrow Functions và Destructuring.
