@@ -33,9 +33,24 @@ Thiết kế trang Home Page gồm:
 Header
 Banner
 Footer
-* **Kết quả đạt được:** ...
+* **Kết quả đạt được:** 
 Nắm được các kiến thức cơ bản của React và ES6.
 Biết cách tạo và tổ chức giao diện theo mô hình Component.
 Hiểu cách sử dụng Props và State trong React.
 Xây dựng thành công một Landing Page đơn giản với giao diện hoàn chỉnh gồm Header, Banner và Footer.
 Tạo được nền tảng để phát triển các trang web React phức tạp hơn trong các buổi học tiếp theo.
+
+### 🔹 Session 03 (Ngày 15/06/2026)
+* **Nội dung:**
+Tìm hiểu về tư duy Component Reusability (tái sử dụng component) để tối ưu hóa mã nguồn.
+Đi sâu vào kỹ thuật Array Mapping để xử lý hiển thị danh sách từ tập dữ liệu.
+Sử dụng các React Hooks nâng cao bao gồm useState để quản lý trạng thái và useEffect để xử lý các side-effects (như gọi API hoặc tải dữ liệu ban đầu).
+Thực hành tạo cấu trúc Product Catalog với hai thành phần chính:
+ProductCard: Component hiển thị thông tin chi tiết của một sản phẩm đơn lẻ.
+ProductList: Component quản lý tập hợp và render danh sách sản phẩm.
+Kết nối và hiển thị dữ liệu thực tế từ hệ thống Backend (thông qua API) hoặc dữ liệu mẫu (products.json).
+* **Kết quả đạt được:**
+Hiểu rõ cách tách biệt và tái sử dụng các component nhỏ trong giao diện.
+Nắm vững kỹ thuật map dữ liệu từ mảng sang giao diện một cách tự động và linh hoạt.
+Biết cách vận hành luồng dữ liệu từ Backend về Frontend bằng useEffect và quản lý trạng thái động với useState.
+Hoàn thiện Product Catalog chuyên nghiệp với các thẻ sản phẩm (Card) được hiển thị đồng nhất, sẵn sàng cho việc tích hợp tính năng giỏ hàng và đặt hàng.
