@@ -54,3 +54,12 @@ Hiểu rõ cách tách biệt và tái sử dụng các component nhỏ trong gi
 Nắm vững kỹ thuật map dữ liệu từ mảng sang giao diện một cách tự động và linh hoạt.
 Biết cách vận hành luồng dữ liệu từ Backend về Frontend bằng useEffect và quản lý trạng thái động với useState.
 Hoàn thiện Product Catalog chuyên nghiệp với các thẻ sản phẩm (Card) được hiển thị đồng nhất, sẵn sàng cho việc tích hợp tính năng giỏ hàng và đặt hàng.
+
+### 🔹 Session 04 (Ngày 19/06/2026)
+* **Nội dung:**
+Trong Session 4, nhóm tiến hành xây dựng chức năng tìm kiếm, lọc và sắp xếp sản phẩm cho trang danh mục sản phẩm của hệ thống ShopHub. Nội dung chính bao gồm quản lý trạng thái trong React bằng useState, gọi dữ liệu sản phẩm từ API bằng Axios và xử lý danh sách sản phẩm trên giao diện.
+Cụ thể, nhóm đã tạo giao diện hiển thị danh sách sản phẩm, bổ sung ô tìm kiếm để người dùng có thể tìm sản phẩm theo tên. Ngoài ra, hệ thống còn có chức năng lọc sản phẩm theo danh mục như Laptop, Điện thoại, Phụ kiện và chức năng sắp xếp sản phẩm theo giá tăng dần hoặc giảm dần.
+Bên cạnh đó, nhóm sử dụng CSS để thiết kế bố cục giao diện sản phẩm, giúp các sản phẩm được hiển thị rõ ràng theo dạng lưới. Các chức năng tìm kiếm, lọc và sắp xếp được xử lý trực tiếp trên frontend, giúp người dùng thao tác dễ dàng và nhanh chóng hơn.
+* **Kết quả đạt được:**
+Sau khi hoàn thành Session 4, hệ thống đã có trang danh mục sản phẩm tương tác. Người dùng có thể nhập từ khóa vào ô tìm kiếm để tìm sản phẩm mong muốn. Khi chọn danh mục, hệ thống chỉ hiển thị những sản phẩm thuộc danh mục đó. Ngoài ra, người dùng có thể sắp xếp sản phẩm theo giá từ thấp đến cao hoặc từ cao xuống thấp.
+Giao diện catalog hoạt động ổn định, dữ liệu sản phẩm được lấy từ API và hiển thị đúng trên frontend. Các trạng thái như từ khóa tìm kiếm, danh mục được chọn và kiểu sắp xếp được quản lý bằng React Hooks. Điều này giúp ứng dụng trở nên linh hoạt hơn và tạo nền tảng để phát triển các chức năng nâng cao ở những session tiếp theo.
