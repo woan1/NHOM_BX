@@ -1,122 +1,95 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
+import ProjectList from "./ProjectList";
+import ProjectDetailPage from "./ProjectDetailPage";
+import LoginPage from "./LoginPage";
+import CartPage from "./CartPage";
+import AdminProductPage from "./AdminProductPage";
 
-function App() {
-  const [count, setCount] = useState(0)
-
+function HomePage() {
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
+    <div style={{ textAlign: "center", padding: "70px" }}>
+      <h1>Welcome to ShopHub</h1>
+      <p>
+        Website thương mại điện tử được xây dựng bằng ReactJS và Python FastAPI.
+      </p>
+
+      <Link to="/products">
         <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          style={{
+            padding: "12px 22px",
+            backgroundColor: "black",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
         >
-          Count is {count}
+          Xem sản phẩm
         </button>
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      </Link>
+    </div>
+  );
 }
 
-export default App
+function App() {
+  return (
+    <BrowserRouter>
+      <div>
+        <nav
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "15px 40px",
+            backgroundColor: "#111",
+            color: "white",
+          }}
+        >
+          <h2 style={{ margin: 0 }}>ShopHub</h2>
+
+          <div style={{ display: "flex", gap: "20px" }}>
+            <Link style={{ color: "white", textDecoration: "none" }} to="/">
+              Trang chủ
+            </Link>
+
+            <Link
+              style={{ color: "white", textDecoration: "none" }}
+              to="/products"
+            >
+              Sản phẩm
+            </Link>
+
+            <Link style={{ color: "white", textDecoration: "none" }} to="/cart">
+              Giỏ hàng
+            </Link>
+
+            <Link
+              style={{ color: "white", textDecoration: "none" }}
+              to="/login"
+            >
+              Đăng nhập
+            </Link>
+
+            <Link
+              style={{ color: "white", textDecoration: "none" }}
+              to="/admin/products"
+            >
+              Admin
+            </Link>
+          </div>
+        </nav>
+
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/products" element={<ProjectList />} />
+          <Route path="/products/:id" element={<ProjectDetailPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/admin/products" element={<AdminProductPage />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
+  );
+}
+
+export default App;
