@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import api from "./api";
+import { useCart } from "./CartContext";
 
 function ProjectDetailPage() {
   const { id } = useParams();
+  const { addToCart } = useCart();
+
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -27,7 +30,11 @@ function ProjectDetailPage() {
   }, [id]);
 
   if (loading) {
-    return <h2 style={{ textAlign: "center" }}>Đang tải chi tiết sản phẩm...</h2>;
+    return (
+      <h2 style={{ textAlign: "center", padding: "40px" }}>
+        Đang tải chi tiết sản phẩm...
+      </h2>
+    );
   }
 
   if (error) {
@@ -61,6 +68,10 @@ function ProjectDetailPage() {
       <p>Số lượng còn lại: {product.stock}</p>
 
       <button
+        onClick={() => {
+          addToCart(product);
+          alert("Đã thêm vào giỏ hàng!");
+        }}
         style={{
           padding: "12px 20px",
           backgroundColor: "black",
@@ -73,6 +84,22 @@ function ProjectDetailPage() {
       >
         Thêm vào giỏ hàng
       </button>
+
+      <Link to="/cart">
+        <button
+          style={{
+            padding: "12px 20px",
+            backgroundColor: "#444",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            cursor: "pointer",
+            marginRight: "10px",
+          }}
+        >
+          Xem giỏ hàng
+        </button>
+      </Link>
 
       <Link to="/products">
         <button

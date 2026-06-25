@@ -4,6 +4,10 @@ import ProjectDetailPage from "./ProjectDetailPage";
 import LoginPage from "./LoginPage";
 import CartPage from "./CartPage";
 import AdminProductPage from "./AdminProductPage";
+import RegisterPage from "./RegisterPage";
+import CheckoutPage from "./CheckoutPage";
+import OrderHistoryPage from "./OrderHistoryPage";
+import { useCart } from "./CartContext";
 
 function HomePage() {
   return (
@@ -32,6 +36,8 @@ function HomePage() {
 }
 
 function App() {
+  const { cartCount } = useCart();
+
   return (
     <BrowserRouter>
       <div>
@@ -48,32 +54,31 @@ function App() {
           <h2 style={{ margin: 0 }}>ShopHub</h2>
 
           <div style={{ display: "flex", gap: "20px" }}>
-            <Link style={{ color: "white", textDecoration: "none" }} to="/">
+            <Link style={linkStyle} to="/">
               Trang chủ
             </Link>
 
-            <Link
-              style={{ color: "white", textDecoration: "none" }}
-              to="/products"
-            >
+            <Link style={linkStyle} to="/products">
               Sản phẩm
             </Link>
 
-            <Link style={{ color: "white", textDecoration: "none" }} to="/cart">
-              Giỏ hàng
+            <Link style={linkStyle} to="/cart">
+              Giỏ hàng ({cartCount})
             </Link>
 
-            <Link
-              style={{ color: "white", textDecoration: "none" }}
-              to="/login"
-            >
+            <Link style={linkStyle} to="/orders">
+              Đơn hàng
+            </Link>
+
+            <Link style={linkStyle} to="/login">
               Đăng nhập
             </Link>
 
-            <Link
-              style={{ color: "white", textDecoration: "none" }}
-              to="/admin/products"
-            >
+            <Link style={linkStyle} to="/register">
+              Đăng ký
+            </Link>
+
+            <Link style={linkStyle} to="/admin/products">
               Admin
             </Link>
           </div>
@@ -84,12 +89,20 @@ function App() {
           <Route path="/products" element={<ProjectList />} />
           <Route path="/products/:id" element={<ProjectDetailPage />} />
           <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+          <Route path="/orders" element={<OrderHistoryPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/admin/products" element={<AdminProductPage />} />
         </Routes>
       </div>
     </BrowserRouter>
   );
 }
+
+const linkStyle = {
+  color: "white",
+  textDecoration: "none",
+};
 
 export default App;

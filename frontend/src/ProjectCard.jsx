@@ -1,6 +1,9 @@
 import { Link } from "react-router-dom";
+import { useCart } from "./CartContext";
 
 function ProjectCard({ product }) {
+  const { addToCart } = useCart();
+
   return (
     <div
       style={{
@@ -33,12 +36,31 @@ function ProjectCard({ product }) {
         <b>Giá:</b> {product.price.toLocaleString()} VNĐ
       </p>
 
+      <button
+        onClick={() => {
+          addToCart(product);
+          alert("Đã thêm vào giỏ hàng!");
+        }}
+        style={{
+          width: "100%",
+          padding: "10px",
+          backgroundColor: "#111",
+          color: "white",
+          border: "none",
+          borderRadius: "6px",
+          cursor: "pointer",
+          marginBottom: "8px",
+        }}
+      >
+        Thêm vào giỏ hàng
+      </button>
+
       <Link to={`/products/${product.id}`}>
         <button
           style={{
             width: "100%",
             padding: "10px",
-            backgroundColor: "#111",
+            backgroundColor: "#555",
             color: "white",
             border: "none",
             borderRadius: "6px",

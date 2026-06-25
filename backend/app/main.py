@@ -2,14 +2,16 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from jose import jwt
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from .auth_schemas import UserLogin, UserRegister
 from .db import Base, SessionLocal, engine, get_db
-from .orm_models import Category, Product, User
+from .orm_models import Category, Product, User, Order, OrderItem
 from .product_schemas import CategoryCreate, ProductCreate, ProductUpdate
+from .order_schemas import OrderCreate
 
 
 Base.metadata.create_all(bind=engine)
@@ -36,6 +38,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 
 def hash_password(password: str):
@@ -64,6 +67,52 @@ def create_access_token(data: dict):
     return encoded_jwt
 
 
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db),
+):
+    try:
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],
+        )
+
+        email = payload.get("sub")
+
+        if email is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication token",
+            )
+
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication token",
+        )
+
+    user = db.query(User).filter(User.email == email).first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+        )
+
+    return user
+
+
+def require_admin(current_user: User = Depends(get_current_user)):
+    if current_user.role != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+
+    return current_user
+
+
 def format_product(product: Product):
     return {
         "id": product.id,
@@ -76,6 +125,30 @@ def format_product(product: Product):
         "category": product.category.name if product.category else None,
     }
 
+def format_order(order: Order):
+    return {
+        "id": order.id,
+        "user_id": order.user_id,
+        "customer_name": order.user.name if order.user else None,
+        "total_price": order.total_price,
+        "status": order.status,
+        "shipping_name": order.shipping_name,
+        "shipping_phone": order.shipping_phone,
+        "shipping_address": order.shipping_address,
+        "created_at": order.created_at,
+        "items": [
+            {
+                "id": item.id,
+                "product_id": item.product_id,
+                "product_name": item.product.name if item.product else None,
+                "image": item.product.image if item.product else None,
+                "quantity": item.quantity,
+                "price": item.price,
+                "subtotal": item.price * item.quantity,
+            }
+            for item in order.items
+        ],
+    }
 
 def seed_data():
     db = SessionLocal()
@@ -202,13 +275,27 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
     }
 
 
+@app.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "name": current_user.name,
+        "email": current_user.email,
+        "role": current_user.role,
+    }
+
+
 @app.get("/categories")
 def get_categories(db: Session = Depends(get_db)):
     return db.query(Category).all()
 
 
 @app.post("/categories", status_code=status.HTTP_201_CREATED)
-def create_category(category: CategoryCreate, db: Session = Depends(get_db)):
+def create_category(
+    category: CategoryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
     new_category = Category(name=category.name)
 
     db.add(new_category)
@@ -238,7 +325,11 @@ def get_product_by_id(product_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/products", status_code=status.HTTP_201_CREATED)
-def create_product(product: ProductCreate, db: Session = Depends(get_db)):
+def create_product(
+    product: ProductCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
     category = db.query(Category).filter(Category.id == product.category_id).first()
 
     if not category:
@@ -268,6 +359,7 @@ def update_product(
     product_id: int,
     product: ProductUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
 ):
     existing_product = db.query(Product).filter(Product.id == product_id).first()
 
@@ -279,6 +371,15 @@ def update_product(
 
     update_data = product.model_dump(exclude_unset=True)
 
+    if "category_id" in update_data:
+        category = db.query(Category).filter(Category.id == update_data["category_id"]).first()
+
+        if not category:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Category not found",
+            )
+
     for key, value in update_data.items():
         setattr(existing_product, key, value)
 
@@ -289,7 +390,11 @@ def update_product(
 
 
 @app.delete("/products/{product_id}")
-def delete_product(product_id: int, db: Session = Depends(get_db)):
+def delete_product(
+    product_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
     product = db.query(Product).filter(Product.id == product_id).first()
 
     if not product:
@@ -302,3 +407,95 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Product deleted successfully"}
+
+@app.post("/orders", status_code=status.HTTP_201_CREATED)
+def create_order(
+    order_data: OrderCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if len(order_data.items) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cart is empty",
+        )
+
+    total_price = 0
+    order_items_data = []
+
+    for item in order_data.items:
+        if item.quantity <= 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Quantity must be greater than 0",
+            )
+
+        product = db.query(Product).filter(Product.id == item.product_id).first()
+
+        if not product:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product {item.product_id} not found",
+            )
+
+        if product.stock < item.quantity:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Not enough stock for {product.name}",
+            )
+
+        total_price += product.price * item.quantity
+        order_items_data.append((product, item.quantity))
+
+    new_order = Order(
+        user_id=current_user.id,
+        total_price=total_price,
+        status="PENDING",
+        shipping_name=order_data.shipping_name,
+        shipping_phone=order_data.shipping_phone,
+        shipping_address=order_data.shipping_address,
+    )
+
+    db.add(new_order)
+    db.flush()
+
+    for product, quantity in order_items_data:
+        product.stock -= quantity
+
+        new_order_item = OrderItem(
+            order_id=new_order.id,
+            product_id=product.id,
+            quantity=quantity,
+            price=product.price,
+        )
+
+        db.add(new_order_item)
+
+    db.commit()
+    db.refresh(new_order)
+
+    return format_order(new_order)
+
+
+@app.get("/orders/my-orders")
+def get_my_orders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    orders = (
+        db.query(Order)
+        .filter(Order.user_id == current_user.id)
+        .order_by(Order.created_at.desc())
+        .all()
+    )
+
+    return [format_order(order) for order in orders]
+
+
+@app.get("/orders")
+def get_all_orders(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    orders = db.query(Order).order_by(Order.created_at.desc()).all()
+    return [format_order(order) for order in orders]
