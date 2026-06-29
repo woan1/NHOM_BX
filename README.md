@@ -81,3 +81,10 @@ Cụ thể, nhóm đã xây dựng các API quản lý sản phẩm gồm: lấy
 * **Kết quả đạt được:**
 Sau khi hoàn thành Session 6, hệ thống đã có backend API cơ bản cho chức năng quản lý sản phẩm. Các API như GET /products, GET /products/{id}, POST /products, PUT /products/{id} và DELETE /products/{id} đã hoạt động đúng chức năng.
 API được chạy thành công trên FastAPI và có thể kiểm tra trực tiếp thông qua Swagger tại đường dẫn /docs. Kết quả này giúp hệ thống ShopHub có nền tảng backend để kết nối với frontend React trong các session tiếp theo.
+### 🔹 Session 07 (Ngày 29/06/2026)
+* **Nội dung:**
+Trong Session 7, nhóm tiến hành tích hợp frontend React với backend FastAPI để thay thế dữ liệu mẫu bằng dữ liệu thật từ API. Nội dung chính gồm tìm hiểu Axios, HTTP Request và cách xử lý dữ liệu bất đồng bộ bằng async/await.
+Cụ thể, nhóm sử dụng Axios để gọi API GET /products nhằm lấy danh sách sản phẩm từ backend và hiển thị lên giao diện trang sản phẩm. Ngoài ra, nhóm cũng triển khai API GET /products/{id} để lấy thông tin chi tiết của từng sản phẩm theo ID. Việc tích hợp này giúp frontend không còn phụ thuộc vào dữ liệu mock mà có thể lấy dữ liệu trực tiếp từ server.
+* **Kết quả đạt được:**
+Sau khi hoàn thành Session 7, frontend đã kết nối thành công với backend API. Danh sách sản phẩm được hiển thị từ dữ liệu thật thông qua API GET /products, đồng thời trang chi tiết sản phẩm cũng lấy đúng thông tin theo từng ID bằng API GET /products/{id}.
+Kết quả này giúp hệ thống ShopHub hoàn thiện bước kết nối giữa giao diện người dùng và máy chủ. Đây là nền tảng quan trọng để phát triển các chức năng tiếp theo như quản lý sản phẩm, thêm sửa xóa dữ liệu, đăng nhập, phân quyền và xử lý giỏ hàng.
