@@ -77,9 +77,7 @@ Kết quả của session này là nền tảng quan trọng để phát triển
 ### 🔹 Session 06 (Ngày 26/06/2026)
 * **Nội dung:**
 Trong Session 6, nhóm tiến hành xây dựng API backend đầu tiên cho hệ thống ShopHub bằng FastAPI. Nội dung chính bao gồm tìm hiểu về FastAPI, RESTful API và các phương thức xử lý dữ liệu như GET, POST, PUT, DELETE.
-
 Cụ thể, nhóm đã xây dựng các API quản lý sản phẩm gồm: lấy danh sách sản phẩm, xem chi tiết sản phẩm theo ID, thêm sản phẩm mới, cập nhật thông tin sản phẩm và xóa sản phẩm. Ngoài ra, nhóm sử dụng Swagger UI để kiểm tra và tài liệu hóa các API đã tạo.
 * **Kết quả đạt được:**
 Sau khi hoàn thành Session 6, hệ thống đã có backend API cơ bản cho chức năng quản lý sản phẩm. Các API như GET /products, GET /products/{id}, POST /products, PUT /products/{id} và DELETE /products/{id} đã hoạt động đúng chức năng.
-
 API được chạy thành công trên FastAPI và có thể kiểm tra trực tiếp thông qua Swagger tại đường dẫn /docs. Kết quả này giúp hệ thống ShopHub có nền tảng backend để kết nối với frontend React trong các session tiếp theo.
