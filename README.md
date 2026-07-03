@@ -96,3 +96,10 @@ Trong Session 8, hệ thống được kết nối với cơ sở dữ liệu Po
 Các bảng chính được tạo gồm categories và products. Ngoài ra, hệ thống xây dựng chức năng quản lý sản phẩm cho Admin, bao gồm thêm sản phẩm, chỉnh sửa sản phẩm và xóa sản phẩm. Các thao tác này được thực hiện thông qua API backend và dữ liệu được lưu trực tiếp vào PostgreSQL.
 * **Kết quả đạt được:**
 Ứng dụng đã kết nối thành công với PostgreSQL. Dữ liệu sản phẩm được lưu trữ trong database thay vì lưu bằng mock data hoặc localStorage. Admin có thể thực hiện các chức năng thêm, sửa và xóa sản phẩm, giúp hệ thống quản lý sản phẩm hoàn chỉnh hơn.
+
+### 🔹 Session 09 (Ngày 3/07/2026)
+* **Nội dung:**
+Trong Session 9, hệ thống xây dựng chức năng đăng ký và đăng nhập người dùng. Backend sử dụng JWT Authentication để xác thực tài khoản và tạo token đăng nhập. Mật khẩu người dùng được mã hóa bằng Password Hashing trước khi lưu vào hệ thống nhằm tăng tính bảo mật.
+Các API chính được xây dựng gồm POST /register để đăng ký tài khoản mới và POST /login để đăng nhập. Ở frontend, hệ thống thiết kế trang đăng ký và trang đăng nhập để người dùng có thể nhập thông tin tài khoản và gửi yêu cầu đến backend.
+* **Kết quả đạt được:**
+Người dùng có thể đăng ký tài khoản mới và đăng nhập thành công vào hệ thống. Sau khi đăng nhập, backend trả về token xác thực, giúp hệ thống nhận biết người dùng đã đăng nhập. Chức năng Authentication giúp ứng dụng có cơ chế bảo mật cơ bản và sẵn sàng phân quyền cho các chức năng như quản lý sản phẩm của Admin.
