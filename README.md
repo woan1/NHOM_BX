@@ -81,6 +81,7 @@ Cụ thể, nhóm đã xây dựng các API quản lý sản phẩm gồm: lấy
 * **Kết quả đạt được:**
 Sau khi hoàn thành Session 6, hệ thống đã có backend API cơ bản cho chức năng quản lý sản phẩm. Các API như GET /products, GET /products/{id}, POST /products, PUT /products/{id} và DELETE /products/{id} đã hoạt động đúng chức năng.
 API được chạy thành công trên FastAPI và có thể kiểm tra trực tiếp thông qua Swagger tại đường dẫn /docs. Kết quả này giúp hệ thống ShopHub có nền tảng backend để kết nối với frontend React trong các session tiếp theo.
+
 ### 🔹 Session 07 (Ngày 29/06/2026)
 * **Nội dung:**
 Trong Session 7, nhóm tiến hành tích hợp frontend React với backend FastAPI để thay thế dữ liệu mẫu bằng dữ liệu thật từ API. Nội dung chính gồm tìm hiểu Axios, HTTP Request và cách xử lý dữ liệu bất đồng bộ bằng async/await.
@@ -88,3 +89,10 @@ Cụ thể, nhóm sử dụng Axios để gọi API GET /products nhằm lấy d
 * **Kết quả đạt được:**
 Sau khi hoàn thành Session 7, frontend đã kết nối thành công với backend API. Danh sách sản phẩm được hiển thị từ dữ liệu thật thông qua API GET /products, đồng thời trang chi tiết sản phẩm cũng lấy đúng thông tin theo từng ID bằng API GET /products/{id}.
 Kết quả này giúp hệ thống ShopHub hoàn thiện bước kết nối giữa giao diện người dùng và máy chủ. Đây là nền tảng quan trọng để phát triển các chức năng tiếp theo như quản lý sản phẩm, thêm sửa xóa dữ liệu, đăng nhập, phân quyền và xử lý giỏ hàng.
+
+### 🔹 Session 08 (Ngày 1/07/2026)
+* **Nội dung:**
+Trong Session 8, hệ thống được kết nối với cơ sở dữ liệu PostgreSQL để lưu trữ dữ liệu sản phẩm và danh mục. Backend sử dụng SQLAlchemy ORM để thao tác với database và Pydantic để kiểm tra dữ liệu đầu vào.
+Các bảng chính được tạo gồm categories và products. Ngoài ra, hệ thống xây dựng chức năng quản lý sản phẩm cho Admin, bao gồm thêm sản phẩm, chỉnh sửa sản phẩm và xóa sản phẩm. Các thao tác này được thực hiện thông qua API backend và dữ liệu được lưu trực tiếp vào PostgreSQL.
+* **Kết quả đạt được:**
+Ứng dụng đã kết nối thành công với PostgreSQL. Dữ liệu sản phẩm được lưu trữ trong database thay vì lưu bằng mock data hoặc localStorage. Admin có thể thực hiện các chức năng thêm, sửa và xóa sản phẩm, giúp hệ thống quản lý sản phẩm hoàn chỉnh hơn.
