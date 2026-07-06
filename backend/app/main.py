@@ -1,10 +1,15 @@
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import shutil
+import uuid
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from .auth_schemas import UserLogin, UserRegister
@@ -17,6 +22,15 @@ from .order_schemas import OrderCreate
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="ShopHub API", version="0.1.0")
+
+
+# =========================
+# UPLOAD IMAGE CONFIG
+# =========================
+UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR)), name="uploads")
 
 
 app.add_middleware(
@@ -38,7 +52,8 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login-form")
 
 
 def hash_password(password: str):
@@ -125,6 +140,7 @@ def format_product(product: Product):
         "category": product.category.name if product.category else None,
     }
 
+
 def format_order(order: Order):
     return {
         "id": order.id,
@@ -149,6 +165,7 @@ def format_order(order: Order):
             for item in order.items
         ],
     }
+
 
 def seed_data():
     db = SessionLocal()
@@ -272,6 +289,40 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
             "email": existing_user.email,
             "role": existing_user.role,
         },
+    }
+
+
+@app.post("/login-form")
+def login_form(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
+    existing_user = db.query(User).filter(
+        User.email == form_data.username
+    ).first()
+
+    if not existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    if not verify_password(form_data.password, existing_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+        )
+
+    access_token = create_access_token(
+        data={
+            "sub": existing_user.email,
+            "role": existing_user.role,
+        }
+    )
+
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
     }
 
 
@@ -408,6 +459,40 @@ def delete_product(
 
     return {"message": "Product deleted successfully"}
 
+
+# =========================
+# UPLOAD IMAGE API
+# =========================
+@app.post("/upload-image")
+def upload_image(
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_admin),
+):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File phải là hình ảnh",
+        )
+
+    file_extension = Path(file.filename).suffix.lower()
+
+    if file_extension not in [".jpg", ".jpeg", ".png", ".webp"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Chỉ hỗ trợ ảnh jpg, jpeg, png, webp",
+        )
+
+    new_filename = f"{uuid.uuid4()}{file_extension}"
+    file_path = UPLOAD_DIR / new_filename
+
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    image_url = f"http://127.0.0.1:8000/uploads/{new_filename}"
+
+    return {"image": image_url}
+
+
 @app.post("/orders", status_code=status.HTTP_201_CREATED)
 def create_order(
     order_data: OrderCreate,
@@ -499,3 +584,49 @@ def get_all_orders(
 ):
     orders = db.query(Order).order_by(Order.created_at.desc()).all()
     return [format_order(order) for order in orders]
+
+
+@app.get("/dashboard/stats")
+def get_dashboard_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    total_products = db.query(Product).count()
+    total_orders = db.query(Order).count()
+    total_users = db.query(User).count()
+
+    total_revenue = db.query(func.sum(Order.total_price)).scalar()
+
+    if total_revenue is None:
+        total_revenue = 0
+
+    return {
+        "total_products": total_products,
+        "total_orders": total_orders,
+        "total_users": total_users,
+        "total_revenue": int(total_revenue),
+    }
+
+
+@app.get("/dashboard/monthly-revenue")
+def get_monthly_revenue(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    results = (
+        db.query(
+            func.to_char(Order.created_at, "YYYY-MM").label("month"),
+            func.sum(Order.total_price).label("revenue"),
+        )
+        .group_by("month")
+        .order_by("month")
+        .all()
+    )
+
+    return [
+        {
+            "month": row.month,
+            "revenue": int(row.revenue),
+        }
+        for row in results
+    ]
