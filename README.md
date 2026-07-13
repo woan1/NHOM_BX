@@ -104,7 +104,7 @@ Các API chính được xây dựng gồm POST /register để đăng ký tài 
 * **Kết quả đạt được:**
 Người dùng có thể đăng ký tài khoản mới và đăng nhập thành công vào hệ thống. Sau khi đăng nhập, backend trả về token xác thực, giúp hệ thống nhận biết người dùng đã đăng nhập. Chức năng Authentication giúp ứng dụng có cơ chế bảo mật cơ bản và sẵn sàng phân quyền cho các chức năng như quản lý sản phẩm của Admin.
 
-### 🔹 Session 10 (Ngày 6/07/2026
+### 🔹 Session 10 (Ngày 6/07/2026)
 * **Nội dung:**
 Trong session này, hệ thống được bổ sung chức năng phân quyền người dùng dựa trên vai trò. Cơ chế được áp dụng là RBAC – Role-Based Access Control, cho phép hệ thống kiểm soát quyền truy cập theo từng loại tài khoản.
 Hệ thống có hai vai trò chính là ADMIN và CUSTOMER. Tài khoản ADMIN có quyền truy cập trang quản trị và thực hiện các chức năng quản lý sản phẩm như thêm, sửa, xóa sản phẩm. Trong khi đó, tài khoản CUSTOMER chỉ được sử dụng các chức năng dành cho người mua hàng như xem sản phẩm, thêm sản phẩm vào giỏ hàng và đặt hàng.
@@ -112,3 +112,11 @@ Các chức năng quan trọng như thêm sản phẩm, xóa sản phẩm và tr
 * **Kết quả đạt được:**
 Sau khi hoàn thành session này, hệ thống đã xây dựng được chức năng phân quyền theo vai trò người dùng. Chỉ tài khoản có quyền ADMIN mới được phép thực hiện các chức năng quản lý sản phẩm. Tài khoản CUSTOMER không thể truy cập hoặc thao tác vào các chức năng dành riêng cho quản trị viên.
 Chức năng Authorization giúp hệ thống tăng tính bảo mật, hạn chế việc người dùng thông thường can thiệp vào dữ liệu sản phẩm và đảm bảo các chức năng quản trị chỉ được sử dụng bởi người có quyền phù hợp.
+
+### 🔹 Session 11 (Ngày 12/07/2026)
+* **Nội dung:**
+Trong Session 11, hệ thống được xây dựng chức năng giỏ hàng bằng React Context API để quản lý dữ liệu dùng chung trong toàn bộ ứng dụng. Người dùng có thể thêm sản phẩm từ trang danh sách hoặc trang chi tiết sản phẩm vào giỏ hàng. Nếu sản phẩm đã tồn tại trong giỏ hàng, hệ thống sẽ tự động tăng số lượng thay vì tạo thêm một sản phẩm trùng lặp.
+Trang giỏ hàng hiển thị đầy đủ thông tin của từng sản phẩm như hình ảnh, tên sản phẩm, đơn giá, số lượng và thành tiền. Người dùng có thể tăng, giảm hoặc thay đổi số lượng sản phẩm, đồng thời có thể xóa từng sản phẩm khỏi giỏ hàng. Tổng giá trị đơn hàng được hệ thống tính toán và cập nhật tự động mỗi khi số lượng sản phẩm thay đổi.
+Dữ liệu giỏ hàng được lưu trong localStorage, giúp thông tin sản phẩm không bị mất khi người dùng tải lại trang hoặc đóng và mở lại trình duyệt. Ngoài ra, hệ thống còn hỗ trợ xóa toàn bộ giỏ hàng và chuyển người dùng đến trang thanh toán khi đã chọn xong sản phẩm.
+* **Kết quả đạt được:**
+Sau khi hoàn thành Session 11, hệ thống đã có chức năng giỏ hàng hoạt động đầy đủ. Người dùng có thể thêm sản phẩm, cập nhật số lượng, xóa sản phẩm và xem tổng tiền của đơn hàng. Dữ liệu giỏ hàng được quản lý tập trung bằng Context API và được lưu lại trên trình duyệt bằng localStorage. Chức năng này tạo nền tảng để tiếp tục xây dựng quy trình Checkout và Orders trong các session tiếp theo.
