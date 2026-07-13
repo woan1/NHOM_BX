@@ -25,7 +25,11 @@ class Product(Base):
     description = Column(Text, nullable=True)
     stock = Column(Integer, default=0)
 
-    category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
+    category_id = Column(
+        Integer,
+        ForeignKey("categories.id"),
+        nullable=True,
+    )
 
     category = relationship("Category", back_populates="products")
     order_items = relationship("OrderItem", back_populates="product")
@@ -39,7 +43,6 @@ class User(Base):
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
 
-    # Nếu frontend của bạn đang dùng role = "admin" thì để mặc định là "user"
     role = Column(String, default="user")
 
     orders = relationship("Order", back_populates="user")
@@ -50,8 +53,12 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    # Cho phép nullable để tránh lỗi nếu frontend chưa gửi user_id
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+
     user_email = Column(String, nullable=True)
 
     total_price = Column(Integer, nullable=False)
@@ -61,10 +68,52 @@ class Order(Base):
     shipping_phone = Column(String, nullable=False)
     shipping_address = Column(String, nullable=False)
 
-    payment_method = Column(String, default="Thanh toán khi nhận hàng")
+    # Phương thức thanh toán:
+    # "Thanh toán khi nhận hàng" hoặc "VNPAY"
+    payment_method = Column(
+        String,
+        default="Thanh toán khi nhận hàng",
+    )
+
+    # Trạng thái thanh toán:
+    # PENDING, PAID hoặc FAILED
+    payment_status = Column(
+        String(20),
+        default="PENDING",
+        nullable=False,
+    )
+
+    # Mã giao dịch ShopHub gửi sang VNPAY
+    vnp_txn_ref = Column(
+        String(100),
+        unique=True,
+        nullable=True,
+    )
+
+    # Mã giao dịch do VNPAY trả về
+    vnp_transaction_no = Column(
+        String(100),
+        nullable=True,
+    )
+
+    # Mã kết quả do VNPAY trả về
+    vnp_response_code = Column(
+        String(10),
+        nullable=True,
+    )
+
+    # Thời gian thanh toán thành công
+    paid_at = Column(
+        DateTime,
+        nullable=True,
+    )
+
     note = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+    )
 
     user = relationship("User", back_populates="orders")
 
@@ -80,15 +129,21 @@ class OrderItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
 
-    order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
+    order_id = Column(
+        Integer,
+        ForeignKey("orders.id"),
+        nullable=False,
+    )
 
-    # Cho phép nullable để tránh lỗi nếu sản phẩm đã bị xóa
-    product_id = Column(Integer, ForeignKey("products.id"), nullable=True)
+    product_id = Column(
+        Integer,
+        ForeignKey("products.id"),
+        nullable=True,
+    )
 
     quantity = Column(Integer, nullable=False)
     price = Column(Integer, nullable=False)
 
-    # Lưu thêm thông tin sản phẩm tại thời điểm đặt hàng
     product_name = Column(String, nullable=False)
     product_image = Column(String, nullable=True)
     product_category = Column(String, nullable=True)

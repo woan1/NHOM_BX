@@ -1,35 +1,121 @@
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import { useCart } from "./CartContext";
-import { getProducts } from "./productData";
+
+const API_URL = "http://127.0.0.1:8000";
+
+const FALLBACK_IMAGE =
+  "https://dummyimage.com/600x400/eef6ff/1769ff&text=ShopHub";
 
 function ProjectDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { addToCart, cartCount } = useCart();
 
-  const products = getProducts();
-  const product = products.find((item) => item.id === Number(id));
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
 
-  const formatPrice = (price) => {
-    return price.toLocaleString("vi-VN") + " đ";
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const getImageUrl = (product) => {
+    const image = product?.image_url || product?.image;
+
+    if (!image) return FALLBACK_IMAGE;
+
+    if (image.startsWith("http")) return image;
+
+    if (image.startsWith("/uploads")) return `${API_URL}${image}`;
+
+    if (image.startsWith("/images")) return image;
+
+    return image;
   };
 
+  const getCategoryName = (product) => {
+    if (typeof product?.category === "object" && product?.category !== null) {
+      return product.category.name || "Khác";
+    }
+
+    return product?.category_name || product?.category || "Khác";
+  };
+
+  const formatPrice = (price) => {
+    return Number(price || 0).toLocaleString("vi-VN") + " đ";
+  };
+
+  useEffect(() => {
+    const fetchProductDetail = async () => {
+      try {
+        setLoading(true);
+
+        // Cách 1: gọi API chi tiết sản phẩm
+        try {
+          const res = await axios.get(`${API_URL}/products/${id}`);
+          setProduct(res.data);
+          return;
+        } catch (detailError) {
+          console.warn("Không lấy được bằng /products/id, thử lấy từ danh sách...");
+        }
+
+        // Cách 2: nếu API /products/id lỗi, lấy danh sách rồi tìm theo id
+        const listRes = await axios.get(`${API_URL}/products`);
+        const data = Array.isArray(listRes.data)
+          ? listRes.data
+          : listRes.data.products || [];
+
+        const foundProduct = data.find(
+          (item) => Number(item.id) === Number(id)
+        );
+
+        setProduct(foundProduct || null);
+      } catch (error) {
+        console.error("Lỗi lấy chi tiết sản phẩm:", error);
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProductDetail();
+  }, [id]);
+
   const handleAddToCart = () => {
+    if (!product) return;
+
     addToCart(product);
     alert(`Đã thêm "${product.name}" vào giỏ hàng`);
   };
 
+  const handleImageError = (e) => {
+    e.currentTarget.onerror = null;
+    e.currentTarget.src = FALLBACK_IMAGE;
+  };
+
+  if (loading) {
+    return (
+      <div style={styles.page}>
+        <Header currentUser={currentUser} cartCount={cartCount} />
+
+        <div style={styles.emptyBox}>
+          <h2>Đang tải chi tiết sản phẩm...</h2>
+        </div>
+      </div>
+    );
+  }
+
   if (!product) {
     return (
       <div style={styles.page}>
-        <Header cartCount={cartCount} />
+        <Header currentUser={currentUser} cartCount={cartCount} />
 
         <div style={styles.emptyBox}>
           <h1>Không tìm thấy sản phẩm</h1>
           <p>Sản phẩm này không tồn tại hoặc đã bị xóa.</p>
 
-          <Link to="/products">
-            <button style={styles.primaryButton}>Quay lại sản phẩm</button>
-          </Link>
+          <button style={styles.backBtn} onClick={() => navigate("/products")}>
+            Quay lại sản phẩm
+          </button>
         </div>
       </div>
     );
@@ -37,77 +123,45 @@ function ProjectDetailPage() {
 
   return (
     <div style={styles.page}>
-      <Header cartCount={cartCount} />
-
-      <section style={styles.breadcrumb}>
-        <Link to="/">Trang chủ</Link>
-        <span>/</span>
-        <Link to="/products">Sản phẩm</Link>
-        <span>/</span>
-        <b>{product.name}</b>
-      </section>
+      <Header currentUser={currentUser} cartCount={cartCount} />
 
       <section style={styles.detailBox}>
         <div style={styles.imageBox}>
-          <img src={product.image} alt={product.name} style={styles.detailImage} />
+          <img
+            src={getImageUrl(product)}
+            alt={product.name}
+            style={styles.productImg}
+            onError={handleImageError}
+          />
         </div>
 
         <div style={styles.infoBox}>
-          <span style={styles.category}>{product.category}</span>
+          <span style={styles.category}>{getCategoryName(product)}</span>
 
           <h1 style={styles.productName}>{product.name}</h1>
 
-          <p style={styles.shortDescription}>{product.description}</p>
+          <p style={styles.description}>
+            {product.description || "Chưa có mô tả sản phẩm."}
+          </p>
 
-          <h2 style={styles.price}>{formatPrice(product.price)}</h2>
-
-          <div style={styles.infoGrid}>
-            <div>
-              <b>Thương hiệu:</b>
-              <p>{product.brand}</p>
-            </div>
-
-            <div>
-              <b>Tình trạng:</b>
-              <p>{product.stock > 0 ? "Còn hàng" : "Hết hàng"}</p>
-            </div>
-
-            <div>
-              <b>Số lượng kho:</b>
-              <p>{product.stock} sản phẩm</p>
-            </div>
-
-            <div>
-              <b>Bảo hành:</b>
-              <p>12 tháng</p>
-            </div>
-          </div>
+          <p style={styles.price}>{formatPrice(product.price)}</p>
 
           <div style={styles.actions}>
-            <button onClick={handleAddToCart} style={styles.cartButton}>
+            <button style={styles.cartBtn} onClick={handleAddToCart}>
               Thêm vào giỏ hàng
             </button>
 
-            <Link to="/cart">
-              <button style={styles.buyButton}>Đến giỏ hàng</button>
-            </Link>
+            <button style={styles.backBtn} onClick={() => navigate("/products")}>
+              Quay lại sản phẩm
+            </button>
           </div>
-
-          <Link to="/products" style={styles.backLink}>
-            ← Quay lại danh sách sản phẩm
-          </Link>
         </div>
-      </section>
-
-      <section style={styles.descriptionBox}>
-        <h2>Mô tả chi tiết</h2>
-        <p>{product.detail}</p>
       </section>
     </div>
   );
 }
 
-function Header({ cartCount }) {
+function Header({ currentUser, cartCount }) {
   return (
     <header style={styles.header}>
       <Link to="/" style={styles.logo}>
@@ -134,9 +188,11 @@ function Header({ cartCount }) {
           Đơn hàng 🧾
         </Link>
 
-        <Link style={styles.navLink} to="/admin/products">
-          Admin
-        </Link>
+        {currentUser?.role === "admin" && (
+          <Link style={styles.navLink} to="/admin/products">
+            Admin
+          </Link>
+        )}
       </nav>
     </header>
   );
@@ -205,19 +261,11 @@ const styles = {
     paddingBottom: "24px",
   },
 
-  breadcrumb: {
-    display: "flex",
-    gap: "10px",
-    alignItems: "center",
-    marginTop: "20px",
-    marginBottom: "20px",
-    color: "#6b7280",
-  },
-
   detailBox: {
     display: "grid",
-    gridTemplateColumns: "1fr 1.2fr",
-    gap: "35px",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "45px",
+    marginTop: "80px",
     border: "1px solid #e5e7eb",
     borderRadius: "14px",
     padding: "35px",
@@ -226,114 +274,91 @@ const styles = {
 
   imageBox: {
     backgroundColor: "#f3f8ff",
-    borderRadius: "14px",
+    borderRadius: "12px",
+    height: "420px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: "420px",
   },
 
-  detailImage: {
-    width: "85%",
-    height: "85%",
+  productImg: {
+    width: "100%",
+    height: "100%",
     objectFit: "contain",
+    padding: "25px",
   },
 
   infoBox: {
     display: "flex",
     flexDirection: "column",
+    justifyContent: "center",
   },
 
   category: {
+    display: "inline-block",
     width: "fit-content",
     backgroundColor: "#dbeafe",
     color: "#1769ff",
-    padding: "8px 16px",
+    padding: "7px 15px",
     borderRadius: "20px",
-    fontWeight: "800",
+    fontSize: "14px",
+    fontWeight: "700",
     marginBottom: "15px",
   },
 
   productName: {
-    margin: "0 0 12px",
-    fontSize: "36px",
+    fontSize: "38px",
+    margin: "0 0 15px",
   },
 
-  shortDescription: {
-    color: "#6b7280",
+  description: {
     fontSize: "17px",
-    marginBottom: "15px",
+    lineHeight: "1.6",
+    color: "#6b7280",
+    marginBottom: "20px",
   },
 
   price: {
     color: "#1769ff",
-    fontSize: "32px",
-    margin: "0 0 20px",
-  },
-
-  infoGrid: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "15px",
+    fontSize: "30px",
+    fontWeight: "800",
     marginBottom: "25px",
   },
 
   actions: {
     display: "flex",
     gap: "15px",
-    marginBottom: "18px",
   },
 
-  cartButton: {
-    padding: "14px 28px",
+  cartBtn: {
     backgroundColor: "#1769ff",
     color: "white",
     border: "none",
     borderRadius: "8px",
-    fontWeight: "800",
+    padding: "14px 24px",
+    fontWeight: "700",
     cursor: "pointer",
+    fontSize: "16px",
   },
 
-  buyButton: {
-    padding: "14px 28px",
+  backBtn: {
     backgroundColor: "#111827",
     color: "white",
     border: "none",
     borderRadius: "8px",
-    fontWeight: "800",
-    cursor: "pointer",
-  },
-
-  backLink: {
-    color: "#1769ff",
+    padding: "14px 24px",
     fontWeight: "700",
-    textDecoration: "none",
-  },
-
-  descriptionBox: {
-    marginTop: "25px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "14px",
-    padding: "25px",
-    boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
+    cursor: "pointer",
+    fontSize: "16px",
   },
 
   emptyBox: {
-    marginTop: "80px",
+    marginTop: "100px",
     textAlign: "center",
     padding: "60px",
     border: "1px solid #e5e7eb",
     borderRadius: "12px",
-  },
-
-  primaryButton: {
-    padding: "12px 22px",
-    backgroundColor: "#1769ff",
-    color: "white",
-    border: "none",
-    borderRadius: "7px",
-    cursor: "pointer",
-    fontWeight: "700",
+    color: "#111827",
   },
 };
 

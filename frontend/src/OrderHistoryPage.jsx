@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+import axios from "axios";
 
 const API_URL = "http://127.0.0.1:8000";
 
@@ -8,36 +9,49 @@ const FALLBACK_IMAGE =
 
 function OrderHistoryPage() {
   const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+
+      const url = currentUser?.email
+        ? `${API_URL}/orders?user_email=${currentUser.email}`
+        : `${API_URL}/orders`;
+
+      const res = await axios.get(url);
+      setOrders(res.data);
+    } catch (error) {
+      console.error("Lỗi lấy đơn hàng:", error);
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const savedOrders = JSON.parse(localStorage.getItem("orders")) || [];
-    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
-    if (currentUser?.email) {
-      const userOrders = savedOrders.filter(
-        (order) => !order.userEmail || order.userEmail === currentUser.email
-      );
-
-      setOrders(userOrders);
-    } else {
-      setOrders(savedOrders);
-    }
+    fetchOrders();
   }, []);
 
   const formatPrice = (price) => {
     return Number(price).toLocaleString("vi-VN") + " đ";
   };
 
-  const getCategoryName = (item) => {
-    if (typeof item.category === "object" && item.category !== null) {
-      return item.category.name || "Khác";
+  const formatDate = (order) => {
+    if (order.date) return order.date;
+
+    if (order.created_at) {
+      return new Date(order.created_at).toLocaleString("vi-VN");
     }
 
-    return item.category_name || item.category || "Khác";
+    return "Chưa có ngày";
   };
 
   const getOrderImage = (item) => {
-    const image = item.image_url || item.image;
+    const image =
+      item.image_url || item.product_image || item.image || item.productImage;
 
     if (!image) return FALLBACK_IMAGE;
 
@@ -58,20 +72,49 @@ function OrderHistoryPage() {
     return image;
   };
 
+  const getProductName = (item) => {
+    return item.product_name || item.name || "Sản phẩm";
+  };
+
+  const getCategoryName = (item) => {
+    return item.product_category || item.category || "Khác";
+  };
+
   const handleImageError = (e) => {
     e.currentTarget.onerror = null;
     e.currentTarget.src = FALLBACK_IMAGE;
   };
 
-  const clearOrders = () => {
-    const confirmDelete = window.confirm(
-      "Bạn có chắc muốn xóa toàn bộ đơn hàng?"
-    );
+  const getPaymentStatusText = (paymentStatus) => {
+    const normalizedStatus = String(
+      paymentStatus || "PENDING"
+    ).toUpperCase();
 
-    if (!confirmDelete) return;
+    if (normalizedStatus === "PAID") {
+      return "Đã thanh toán";
+    }
 
-    localStorage.removeItem("orders");
-    setOrders([]);
+    if (normalizedStatus === "FAILED") {
+      return "Thanh toán thất bại";
+    }
+
+    return "Chưa thanh toán";
+  };
+
+  const getPaymentStatusStyle = (paymentStatus) => {
+    const normalizedStatus = String(
+      paymentStatus || "PENDING"
+    ).toUpperCase();
+
+    if (normalizedStatus === "PAID") {
+      return styles.paymentPaid;
+    }
+
+    if (normalizedStatus === "FAILED") {
+      return styles.paymentFailed;
+    }
+
+    return styles.paymentPending;
   };
 
   return (
@@ -110,7 +153,11 @@ function OrderHistoryPage() {
         </p>
       </section>
 
-      {orders.length === 0 ? (
+      {loading ? (
+        <div style={styles.emptyBox}>
+          <h2>Đang tải đơn hàng...</h2>
+        </div>
+      ) : orders.length === 0 ? (
         <div style={styles.emptyBox}>
           <h2>Chưa có đơn hàng nào</h2>
           <p>Bạn hãy mua sản phẩm và thanh toán để tạo đơn hàng.</p>
@@ -126,8 +173,8 @@ function OrderHistoryPage() {
               Tổng số đơn hàng: <b>{orders.length}</b>
             </p>
 
-            <button onClick={clearOrders} style={styles.deleteAllButton}>
-              Xóa lịch sử đơn hàng
+            <button onClick={fetchOrders} style={styles.refreshButton}>
+              Làm mới
             </button>
           </div>
 
@@ -136,8 +183,10 @@ function OrderHistoryPage() {
               <div key={order.id} style={styles.orderCard}>
                 <div style={styles.orderHeader}>
                   <div>
-                    <h2 style={styles.orderId}>Mã đơn: {order.id}</h2>
-                    <p style={styles.orderDate}>Ngày đặt: {order.date}</p>
+                    <h2 style={styles.orderId}>Mã đơn: DH{order.id}</h2>
+                    <p style={styles.orderDate}>
+                      Ngày đặt: {formatDate(order)}
+                    </p>
                   </div>
 
                   <span style={styles.status}>
@@ -149,25 +198,48 @@ function OrderHistoryPage() {
                   <h3>Thông tin khách hàng</h3>
 
                   <p>
-                    <b>Họ tên:</b> {order.customer?.fullName || "Chưa có"}
+                    <b>Họ tên:</b>{" "}
+                    {order.shipping_name ||
+                      order.customer?.fullName ||
+                      "Chưa có"}
                   </p>
 
                   <p>
-                    <b>Số điện thoại:</b> {order.customer?.phone || "Chưa có"}
+                    <b>Số điện thoại:</b>{" "}
+                    {order.shipping_phone ||
+                      order.customer?.phone ||
+                      "Chưa có"}
                   </p>
 
                   <p>
-                    <b>Địa chỉ:</b> {order.customer?.address || "Chưa có"}
+                    <b>Địa chỉ:</b>{" "}
+                    {order.shipping_address ||
+                      order.customer?.address ||
+                      "Chưa có"}
                   </p>
 
                   <p>
                     <b>Thanh toán:</b>{" "}
-                    {order.customer?.paymentMethod || "Chưa có"}
+                    {order.payment_method ||
+                      order.customer?.paymentMethod ||
+                      "Thanh toán khi nhận hàng"}
                   </p>
 
-                  {order.customer?.note && (
+                  <p>
+                    <b>Trạng thái thanh toán:</b>{" "}
+                    <span
+                      style={{
+                        ...styles.paymentStatus,
+                        ...getPaymentStatusStyle(order.payment_status),
+                      }}
+                    >
+                      {getPaymentStatusText(order.payment_status)}
+                    </span>
+                  </p>
+
+                  {(order.note || order.customer?.note) && (
                     <p>
-                      <b>Ghi chú:</b> {order.customer.note}
+                      <b>Ghi chú:</b> {order.note || order.customer?.note}
                     </p>
                   )}
                 </div>
@@ -180,14 +252,16 @@ function OrderHistoryPage() {
                       <div style={styles.icon}>
                         <img
                           src={getOrderImage(item)}
-                          alt={item.name}
+                          alt={getProductName(item)}
                           style={styles.productImg}
                           onError={handleImageError}
                         />
                       </div>
 
                       <div style={{ flex: 1 }}>
-                        <h4 style={styles.productName}>{item.name}</h4>
+                        <h4 style={styles.productName}>
+                          {getProductName(item)}
+                        </h4>
 
                         <p style={styles.productInfo}>
                           {getCategoryName(item)} - SL: {item.quantity}
@@ -195,7 +269,10 @@ function OrderHistoryPage() {
                       </div>
 
                       <strong>
-                        {formatPrice(Number(item.price) * Number(item.quantity))}
+                        {formatPrice(
+                          item.subtotal ||
+                            Number(item.price) * Number(item.quantity)
+                        )}
                       </strong>
                     </div>
                   ))}
@@ -204,7 +281,7 @@ function OrderHistoryPage() {
                 <div style={styles.totalBox}>
                   <h2>Tổng tiền:</h2>
                   <h2 style={{ color: "#1769ff" }}>
-                    {formatPrice(order.total)}
+                    {formatPrice(order.total_price || order.total)}
                   </h2>
                 </div>
               </div>
@@ -321,9 +398,9 @@ const styles = {
     marginBottom: "18px",
   },
 
-  deleteAllButton: {
+  refreshButton: {
     padding: "11px 20px",
-    backgroundColor: "#ef4444",
+    backgroundColor: "#111827",
     color: "white",
     border: "none",
     borderRadius: "7px",
@@ -375,6 +452,29 @@ const styles = {
     padding: "15px 18px",
     borderRadius: "10px",
     marginBottom: "15px",
+  },
+
+  paymentStatus: {
+    display: "inline-block",
+    padding: "4px 10px",
+    borderRadius: "999px",
+    fontSize: "14px",
+    fontWeight: "700",
+  },
+
+  paymentPaid: {
+    backgroundColor: "#dcfce7",
+    color: "#15803d",
+  },
+
+  paymentPending: {
+    backgroundColor: "#fef3c7",
+    color: "#b45309",
+  },
+
+  paymentFailed: {
+    backgroundColor: "#fee2e2",
+    color: "#b91c1c",
   },
 
   productRow: {
