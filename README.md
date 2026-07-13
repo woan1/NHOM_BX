@@ -120,3 +120,15 @@ Trang giỏ hàng hiển thị đầy đủ thông tin của từng sản phẩm
 Dữ liệu giỏ hàng được lưu trong localStorage, giúp thông tin sản phẩm không bị mất khi người dùng tải lại trang hoặc đóng và mở lại trình duyệt. Ngoài ra, hệ thống còn hỗ trợ xóa toàn bộ giỏ hàng và chuyển người dùng đến trang thanh toán khi đã chọn xong sản phẩm.
 * **Kết quả đạt được:**
 Sau khi hoàn thành Session 11, hệ thống đã có chức năng giỏ hàng hoạt động đầy đủ. Người dùng có thể thêm sản phẩm, cập nhật số lượng, xóa sản phẩm và xem tổng tiền của đơn hàng. Dữ liệu giỏ hàng được quản lý tập trung bằng Context API và được lưu lại trên trình duyệt bằng localStorage. Chức năng này tạo nền tảng để tiếp tục xây dựng quy trình Checkout và Orders trong các session tiếp theo.
+
+### 🔹 Session 12 (Ngày 12/07/2026)
+* **Nội dung:**
+Trong Session 12, hệ thống ShopHub được xây dựng chức năng thanh toán và quản lý đơn hàng. Sau khi lựa chọn sản phẩm trong giỏ hàng, người dùng có thể chuyển đến trang Checkout để nhập các thông tin giao hàng như họ tên, số điện thoại, địa chỉ nhận hàng, ghi chú và lựa chọn phương thức thanh toán.
+Ở phía backend, hệ thống xây dựng hai bảng dữ liệu chính là orders và order_items. Bảng orders được sử dụng để lưu thông tin chung của đơn hàng như người đặt hàng, tổng tiền, trạng thái đơn hàng, phương thức thanh toán, trạng thái thanh toán, thông tin giao hàng và thời gian tạo đơn. Bảng order_items lưu chi tiết từng sản phẩm thuộc đơn hàng, bao gồm mã sản phẩm, số lượng và giá tại thời điểm đặt hàng.
+Khi người dùng xác nhận đặt hàng, frontend gửi thông tin giỏ hàng và thông tin giao hàng đến API backend. Backend thực hiện kiểm tra sản phẩm, số lượng tồn kho, tính tổng giá trị đơn hàng, tạo bản ghi trong bảng orders và lưu từng sản phẩm vào bảng order_items. Sau khi đơn hàng được tạo thành công, giỏ hàng được xóa và người dùng được chuyển đến trang lịch sử đơn hàng.
+Hệ thống cũng xây dựng trang Order History để người dùng xem lại các đơn hàng đã đặt. Mỗi đơn hàng hiển thị mã đơn, ngày đặt hàng, danh sách sản phẩm, tổng tiền, phương thức thanh toán, trạng thái thanh toán và trạng thái xử lý đơn hàng.
+Bên cạnh đó, hệ thống áp dụng khái niệm Transaction để đảm bảo quá trình tạo đơn hàng diễn ra đồng bộ. Nếu xảy ra lỗi trong quá trình lưu đơn hàng hoặc chi tiết sản phẩm, toàn bộ dữ liệu sẽ được hoàn tác, tránh trường hợp đơn hàng được tạo nhưng thiếu sản phẩm hoặc dữ liệu không đầy đủ.
+* **Kết quả đạt được:**
+Sau khi hoàn thành Session 12, hệ thống đã cho phép khách hàng thực hiện đầy đủ quy trình từ giỏ hàng đến đặt hàng. Người dùng có thể nhập thông tin giao hàng, lựa chọn phương thức thanh toán, xác nhận đơn hàng và xem lại lịch sử các đơn đã đặt.
+Dữ liệu đơn hàng và sản phẩm trong đơn được lưu chính xác trong cơ sở dữ liệu thông qua hai bảng orders và order_items. Hệ thống tự động tính tổng tiền, lưu trạng thái đơn hàng, trạng thái thanh toán và thông tin người nhận.
+Chức năng Checkout và Order History đã hoạt động ổn định, giúp khách hàng có thể tạo, theo dõi và kiểm tra lại đơn hàng của mình. Đây cũng là nền tảng để tiếp tục xây dựng chức năng quản lý đơn hàng trong Admin Dashboard và tích hợp các phương thức thanh toán trực tuyến.
