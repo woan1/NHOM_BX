@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "./api";
 import "./HomePage.css";
 
 const FALLBACK_IMAGE =
@@ -11,20 +11,32 @@ function HomePage() {
   const [products, setProducts] = useState([]);
   const navigate = useNavigate();
 
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  let currentUser = null;
+
+  try {
+    const savedUser = localStorage.getItem("currentUser");
+    currentUser = savedUser ? JSON.parse(savedUser) : null;
+  } catch (error) {
+    console.error("Lỗi đọc thông tin người dùng:", error);
+    localStorage.removeItem("currentUser");
+  }
 
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await axios.get("http://127.0.0.1:8000/products");
+        const response = await api.get("/products");
 
-        const data = Array.isArray(res.data)
-          ? res.data
-          : res.data.products || [];
+        const productData = Array.isArray(response.data)
+          ? response.data
+          : response.data?.products || [];
 
-        setProducts(data.slice(0, 4));
+        setProducts(productData.slice(0, 4));
       } catch (error) {
-        console.error("Lỗi lấy sản phẩm từ API:", error);
+        console.error(
+          "Lỗi lấy sản phẩm từ API:",
+          error.response?.data || error.message
+        );
+
         setProducts([]);
       }
     };
@@ -33,19 +45,40 @@ function HomePage() {
   }, []);
 
   const handleSearch = () => {
-    if (keyword.trim() === "") return;
-    navigate(`/products?search=${encodeURIComponent(keyword)}`);
+    const trimmedKeyword = keyword.trim();
+
+    if (!trimmedKeyword) {
+      return;
+    }
+
+    navigate(
+      `/products?search=${encodeURIComponent(trimmedKeyword)}`
+    );
   };
 
   const handleLogout = () => {
     localStorage.removeItem("currentUser");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("token");
+    localStorage.removeItem("access_token");
+    localStorage.removeItem("authToken");
+
     alert("Đã đăng xuất.");
     navigate("/login");
   };
 
-  const handleImageError = (e) => {
-    e.currentTarget.onerror = null;
-    e.currentTarget.src = FALLBACK_IMAGE;
+  const handleImageError = (event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src = FALLBACK_IMAGE;
+  };
+
+  const getUserDisplayName = () => {
+    return (
+      currentUser?.fullName ||
+      currentUser?.name ||
+      currentUser?.email ||
+      "Tài khoản"
+    );
   };
 
   return (
@@ -53,6 +86,7 @@ function HomePage() {
       <header className="header">
         <Link to="/" className="logo">
           <div className="logo-box">S</div>
+
           <h1>
             Shop<span>Hub</span>
           </h1>
@@ -67,20 +101,29 @@ function HomePage() {
           <Link to="/cart">Giỏ hàng 🛒</Link>
           <Link to="/orders">Đơn hàng 🧾</Link>
 
-          {currentUser?.role === "admin" && (
+          {(currentUser?.role === "admin" ||
+            currentUser?.role === "ADMIN") && (
             <Link to="/admin/products">⚙️ Admin</Link>
           )}
 
           {currentUser ? (
             <>
-              <Link to="/login">👤 {currentUser.fullName}</Link>
-              <button className="logout-btn" onClick={handleLogout}>
+              <span className="user-name">
+                👤 {getUserDisplayName()}
+              </span>
+
+              <button
+                type="button"
+                className="logout-btn"
+                onClick={handleLogout}
+              >
                 Đăng xuất
               </button>
             </>
           ) : (
             <>
               <Link to="/login">👤 Đăng nhập</Link>
+
               <Link className="register-btn" to="/register">
                 👤 Đăng ký
               </Link>
@@ -90,23 +133,27 @@ function HomePage() {
       </header>
 
       <section className="hero">
-        <button className="arrow left">‹</button>
+        <button type="button" className="arrow left">
+          ‹
+        </button>
 
         <div className="hero-text">
           <span>Chào mừng đến với ShopHub</span>
 
           <h2>
-            Mua sắm thông minh <br />
+            Mua sắm thông minh
+            <br />
             cùng <b>ShopHub</b>
           </h2>
 
           <p>
-            Đa dạng sản phẩm, giá tốt mỗi ngày và trải nghiệm mua sắm trực tuyến
-            tiện lợi, an toàn.
+            Đa dạng sản phẩm, giá tốt mỗi ngày và trải nghiệm mua
+            sắm trực tuyến tiện lợi, an toàn.
           </p>
 
           <div className="hero-actions">
             <Link to="/products">Xem sản phẩm ›</Link>
+
             <Link className="buy-btn" to="/products">
               Mua ngay 🛍
             </Link>
@@ -117,33 +164,35 @@ function HomePage() {
           <img
             className="hero-laptop"
             src="/images/laptop-dell.jpg"
-            alt=""
+            alt="Laptop Dell"
             onError={handleImageError}
           />
 
           <img
             className="hero-phone"
             src="/images/iphone-15.jpg"
-            alt=""
+            alt="iPhone 15"
             onError={handleImageError}
           />
 
           <img
             className="hero-headphone"
             src="/images/sony-headphone.jpg"
-            alt=""
+            alt="Tai nghe Sony"
             onError={handleImageError}
           />
 
           <img
             className="hero-watch"
             src="/images/xiaomi-watch.jpg"
-            alt=""
+            alt="Đồng hồ Xiaomi"
             onError={handleImageError}
           />
         </div>
 
-        <button className="arrow right">›</button>
+        <button type="button" className="arrow right">
+          ›
+        </button>
       </section>
 
       <section className="search-area">
@@ -154,13 +203,17 @@ function HomePage() {
             type="text"
             placeholder="Tìm kiếm sản phẩm..."
             value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSearch();
+            onChange={(event) => setKeyword(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                handleSearch();
+              }
             }}
           />
 
-          <button onClick={handleSearch}>Tìm kiếm</button>
+          <button type="button" onClick={handleSearch}>
+            Tìm kiếm
+          </button>
         </div>
 
         <div className="category-list">
@@ -189,14 +242,20 @@ function HomePage() {
 
         <div className="product-grid">
           {products.length === 0 ? (
-            <p className="empty-product">Chưa có sản phẩm nào.</p>
+            <p className="empty-product">
+              Chưa có sản phẩm nào.
+            </p>
           ) : (
             products.map((product) => (
               <div className="product-card" key={product.id}>
                 <div className="product-img">
                   <img
-                    src={product.image_url || product.image || FALLBACK_IMAGE}
-                    alt={product.name}
+                    src={
+                      product.image_url ||
+                      product.image ||
+                      FALLBACK_IMAGE
+                    }
+                    alt={product.name || "Sản phẩm ShopHub"}
                     onError={handleImageError}
                   />
                 </div>
@@ -204,9 +263,16 @@ function HomePage() {
                 <div className="product-info">
                   <h3>{product.name}</h3>
 
-                  <p>{Number(product.price).toLocaleString("vi-VN")} đ</p>
+                  <p>
+                    {Number(product.price || 0).toLocaleString(
+                      "vi-VN"
+                    )}{" "}
+                    đ
+                  </p>
 
-                  <Link to={`/products/${product.id}`}>Xem chi tiết</Link>
+                  <Link to={`/products/${product.id}`}>
+                    Xem chi tiết
+                  </Link>
                 </div>
               </div>
             ))
@@ -222,7 +288,8 @@ function HomePage() {
         </div>
 
         <div>
-          CHO ĐƠN HÀNG TỪ 1.000.000đ <br />
+          CHO ĐƠN HÀNG TỪ 1.000.000đ
+          <br />
           Nhập mã: <mark>SH10</mark>
         </div>
 
@@ -235,25 +302,38 @@ function HomePage() {
         <div className="why-grid">
           <div className="why-card">
             <span>🏅</span>
+
             <div>
               <h3>Sản phẩm chất lượng</h3>
-              <p>Cam kết hàng chính hãng, nguồn gốc rõ ràng, bảo hành uy tín.</p>
+
+              <p>
+                Cam kết hàng chính hãng, nguồn gốc rõ ràng, bảo
+                hành uy tín.
+              </p>
             </div>
           </div>
 
           <div className="why-card">
             <span>🚚</span>
+
             <div>
               <h3>Giao hàng nhanh</h3>
-              <p>Giao hàng toàn quốc, nhanh chóng, đúng hẹn.</p>
+
+              <p>
+                Giao hàng toàn quốc, nhanh chóng, đúng hẹn.
+              </p>
             </div>
           </div>
 
           <div className="why-card">
             <span>🎧</span>
+
             <div>
               <h3>Hỗ trợ 24/7</h3>
-              <p>Đội ngũ hỗ trợ tận tâm, sẵn sàng hỗ trợ mọi lúc.</p>
+
+              <p>
+                Đội ngũ hỗ trợ tận tâm, sẵn sàng hỗ trợ mọi lúc.
+              </p>
             </div>
           </div>
         </div>
@@ -263,14 +343,15 @@ function HomePage() {
         <div>
           <div className="footer-logo">
             <div className="logo-box">S</div>
+
             <h2>
               Shop<span>Hub</span>
             </h2>
           </div>
 
           <p>
-            ShopHub - Nền tảng mua sắm trực tuyến đáng tin cậy, mang đến trải
-            nghiệm tốt nhất cho khách hàng.
+            ShopHub - Nền tảng mua sắm trực tuyến đáng tin cậy,
+            mang đến trải nghiệm tốt nhất cho khách hàng.
           </p>
         </div>
 
@@ -298,7 +379,9 @@ function HomePage() {
         </div>
       </footer>
 
-      <div className="copyright">© 2024 ShopHub. All rights reserved.</div>
+      <div className="copyright">
+        © 2026 ShopHub. All rights reserved.
+      </div>
     </div>
   );
 }
