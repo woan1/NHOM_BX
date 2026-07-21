@@ -1,9 +1,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import api from "./api";
 import { useCart } from "./CartContext";
-
-const API_URL = "http://127.0.0.1:8000";
 
 const FALLBACK_IMAGE =
   "https://dummyimage.com/300x200/eef6ff/1769ff&text=ShopHub";
@@ -11,28 +9,51 @@ const FALLBACK_IMAGE =
 function ProjectList() {
   const [searchParams] = useSearchParams();
   const { addToCart, cartCount } = useCart();
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+
+  let currentUser = null;
+
+  try {
+    const savedUser = localStorage.getItem("currentUser");
+    currentUser = savedUser ? JSON.parse(savedUser) : null;
+  } catch (error) {
+    console.error("Lỗi đọc thông tin người dùng:", error);
+    localStorage.removeItem("currentUser");
+  }
+
   const searchFromHome = searchParams.get("search") || "";
-  const categoryFromHome = searchParams.get("category") || "All";
+  const categoryFromHome =
+    searchParams.get("category") || "All";
 
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState(searchFromHome);
-  const [category, setCategory] = useState(categoryFromHome);
+  const [category, setCategory] =
+    useState(categoryFromHome);
   const [sortPrice, setSortPrice] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setSearch(searchFromHome);
+    setCategory(categoryFromHome);
+  }, [searchFromHome, categoryFromHome]);
+
+  useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await axios.get(`${API_URL}/products`);
+        setLoading(true);
 
-        const data = Array.isArray(res.data)
-          ? res.data
-          : res.data.products || [];
+        const response = await api.get("/products");
 
-        setProducts(data);
+        const productData = Array.isArray(response.data)
+          ? response.data
+          : response.data?.products || [];
+
+        setProducts(productData);
       } catch (error) {
-        console.error("Lỗi lấy sản phẩm từ database:", error);
+        console.error(
+          "Lỗi lấy sản phẩm từ database:",
+          error.response?.data || error.message
+        );
+
         setProducts([]);
       } finally {
         setLoading(false);
@@ -43,57 +64,100 @@ function ProjectList() {
   }, []);
 
   const getCategoryName = (product) => {
-    if (typeof product.category === "object" && product.category !== null) {
+    if (
+      typeof product?.category === "object" &&
+      product?.category !== null
+    ) {
       return product.category.name || "Khác";
     }
 
-    return product.category_name || product.category || "Khác";
+    return (
+      product?.category_name ||
+      product?.category ||
+      "Khác"
+    );
   };
 
   const getImageUrl = (product) => {
-    const image = product.image_url || product.image;
+    const image =
+      product?.image_url ||
+      product?.image;
 
-    if (!image) return FALLBACK_IMAGE;
+    if (!image) {
+      return FALLBACK_IMAGE;
+    }
 
-    if (image.startsWith("http")) return image;
+    if (image.startsWith("http")) {
+      return image;
+    }
 
-    if (image.startsWith("/images")) return image;
+    if (image.startsWith("/uploads")) {
+      return `${api.defaults.baseURL}${image}`;
+    }
 
-    if (image.startsWith("/uploads")) return `${API_URL}${image}`;
+    if (image.startsWith("/images")) {
+      return image;
+    }
 
     return image;
   };
 
   const categories = useMemo(() => {
-    return ["All", ...new Set(products.map((item) => getCategoryName(item)))];
+    const categoryNames = products
+      .map((product) => getCategoryName(product))
+      .filter(Boolean);
+
+    return [
+      "All",
+      ...new Set(categoryNames),
+    ];
   }, [products]);
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
 
-    if (search.trim() !== "") {
-      result = result.filter((item) =>
-        item.name?.toLowerCase().includes(search.toLowerCase())
+    const normalizedSearch = search
+      .trim()
+      .toLowerCase();
+
+    if (normalizedSearch) {
+      result = result.filter((product) =>
+        String(product?.name || "")
+          .toLowerCase()
+          .includes(normalizedSearch)
       );
     }
 
     if (category !== "All") {
-      result = result.filter((item) => getCategoryName(item) === category);
+      result = result.filter(
+        (product) =>
+          getCategoryName(product) === category
+      );
     }
 
     if (sortPrice === "asc") {
-      result.sort((a, b) => Number(a.price) - Number(b.price));
+      result.sort(
+        (firstProduct, secondProduct) =>
+          Number(firstProduct.price || 0) -
+          Number(secondProduct.price || 0)
+      );
     }
 
     if (sortPrice === "desc") {
-      result.sort((a, b) => Number(b.price) - Number(a.price));
+      result.sort(
+        (firstProduct, secondProduct) =>
+          Number(secondProduct.price || 0) -
+          Number(firstProduct.price || 0)
+      );
     }
 
     return result;
   }, [products, search, category, sortPrice]);
 
   const formatPrice = (price) => {
-    return Number(price).toLocaleString("vi-VN") + " đ";
+    return `${Number(price || 0).toLocaleString(
+      "vi-VN"
+    )} đ`;
   };
 
   const resetFilter = () => {
@@ -103,22 +167,38 @@ function ProjectList() {
   };
 
   const handleAddToCart = (product) => {
+    if (Number(product?.stock || 0) <= 0) {
+      alert("Sản phẩm đã hết hàng.");
+      return;
+    }
+
     addToCart(product);
-    alert(`Đã thêm "${product.name}" vào giỏ hàng`);
+
+    alert(
+      `Đã thêm "${product.name}" vào giỏ hàng`
+    );
   };
 
-  const handleImageError = (e) => {
-    e.currentTarget.onerror = null;
-    e.currentTarget.src = FALLBACK_IMAGE;
+  const handleImageError = (event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src = FALLBACK_IMAGE;
   };
+
+  const isAdmin =
+    currentUser?.role === "admin" ||
+    currentUser?.role === "ADMIN";
 
   return (
     <div style={styles.page}>
       <header style={styles.header}>
         <Link to="/" style={styles.logo}>
           <div style={styles.logoBox}>S</div>
+
           <h1 style={styles.logoText}>
-            Shop<span style={{ color: "#1769ff" }}>Hub</span>
+            Shop
+            <span style={{ color: "#1769ff" }}>
+              Hub
+            </span>
           </h1>
         </Link>
 
@@ -127,7 +207,10 @@ function ProjectList() {
             Trang chủ
           </Link>
 
-          <Link style={styles.activeLink} to="/products">
+          <Link
+            style={styles.activeLink}
+            to="/products"
+          >
             Sản phẩm
           </Link>
 
@@ -139,18 +222,25 @@ function ProjectList() {
             Đơn hàng 🧾
           </Link>
 
-          {currentUser?.role === "admin" && (
-  <Link style={styles.navLink} to="/admin/products">
-    Admin
-  </Link>
-)}
+          {isAdmin && (
+            <Link
+              style={styles.navLink}
+              to="/admin/products"
+            >
+              Admin
+            </Link>
+          )}
         </nav>
       </header>
 
       <section style={styles.titleBox}>
-        <h2 style={styles.title}>Danh sách sản phẩm</h2>
+        <h2 style={styles.title}>
+          Danh sách sản phẩm
+        </h2>
+
         <p style={styles.subtitle}>
-          Tìm kiếm, lọc danh mục và sắp xếp sản phẩm trong ShopHub.
+          Tìm kiếm, lọc danh mục và sắp xếp sản
+          phẩm trong ShopHub.
         </p>
       </section>
 
@@ -160,17 +250,23 @@ function ProjectList() {
           type="text"
           placeholder="Tìm kiếm sản phẩm..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(event) =>
+            setSearch(event.target.value)
+          }
         />
 
         <select
           style={styles.select}
           value={category}
-          onChange={(e) => setCategory(e.target.value)}
+          onChange={(event) =>
+            setCategory(event.target.value)
+          }
         >
           {categories.map((item) => (
             <option key={item} value={item}>
-              {item === "All" ? "Tất cả danh mục" : item}
+              {item === "All"
+                ? "Tất cả danh mục"
+                : item}
             </option>
           ))}
         </select>
@@ -178,14 +274,24 @@ function ProjectList() {
         <select
           style={styles.select}
           value={sortPrice}
-          onChange={(e) => setSortPrice(e.target.value)}
+          onChange={(event) =>
+            setSortPrice(event.target.value)
+          }
         >
           <option value="">Sắp xếp giá</option>
-          <option value="asc">Giá thấp đến cao</option>
-          <option value="desc">Giá cao đến thấp</option>
+          <option value="asc">
+            Giá thấp đến cao
+          </option>
+          <option value="desc">
+            Giá cao đến thấp
+          </option>
         </select>
 
-        <button style={styles.resetBtn} onClick={resetFilter}>
+        <button
+          type="button"
+          style={styles.resetBtn}
+          onClick={resetFilter}
+        >
           Làm mới
         </button>
       </section>
@@ -197,60 +303,97 @@ function ProjectList() {
       ) : (
         <>
           <div style={styles.resultText}>
-            Tìm thấy <b>{filteredProducts.length}</b> sản phẩm
+            Tìm thấy{" "}
+            <b>{filteredProducts.length}</b>{" "}
+            sản phẩm
           </div>
 
           {filteredProducts.length > 0 ? (
             <section style={styles.grid}>
-              {filteredProducts.map((product) => (
-                <div style={styles.card} key={product.id}>
-                  <div style={styles.productImage}>
-                    <img
-                      src={getImageUrl(product)}
-                      alt={product.name}
-                      style={styles.productImg}
-                      onError={handleImageError}
-                    />
-                  </div>
+              {filteredProducts.map((product) => {
+                const outOfStock =
+                  Number(product?.stock || 0) <= 0;
 
-                  <div style={styles.cardBody}>
-                    <span style={styles.category}>
-                      {getCategoryName(product)}
-                    </span>
+                return (
+                  <div
+                    style={styles.card}
+                    key={product.id}
+                  >
+                    <div style={styles.productImage}>
+                      <img
+                        src={getImageUrl(product)}
+                        alt={
+                          product.name ||
+                          "Sản phẩm ShopHub"
+                        }
+                        style={styles.productImg}
+                        onError={handleImageError}
+                      />
+                    </div>
 
-                    <h3 style={styles.productName}>{product.name}</h3>
+                    <div style={styles.cardBody}>
+                      <span style={styles.category}>
+                        {getCategoryName(product)}
+                      </span>
 
-                    <p style={styles.description}>
-                      {product.description || "Chưa có mô tả sản phẩm."}
-                    </p>
+                      <h3 style={styles.productName}>
+                        {product.name}
+                      </h3>
 
-                    <p style={styles.price}>{formatPrice(product.price)}</p>
+                      <p style={styles.description}>
+                        {product.description ||
+                          "Chưa có mô tả sản phẩm."}
+                      </p>
 
-                    <div style={styles.actions}>
-                      <Link
-                        to={`/products/${product.id}`}
-                        style={styles.detailBtn}
-                      >
-                        Xem chi tiết
-                      </Link>
+                      <p style={styles.price}>
+                        {formatPrice(product.price)}
+                      </p>
 
-                      <button
-                        style={styles.cartBtn}
-                        onClick={() => handleAddToCart(product)}
-                      >
-                        Thêm vào giỏ
-                      </button>
+                      <p style={styles.stock}>
+                        Kho: {product.stock ?? 0} sản phẩm
+                      </p>
+
+                      <div style={styles.actions}>
+                        <Link
+                          to={`/products/${product.id}`}
+                          style={styles.detailBtn}
+                        >
+                          Xem chi tiết
+                        </Link>
+
+                        <button
+                          type="button"
+                          style={{
+                            ...styles.cartBtn,
+                            opacity: outOfStock
+                              ? 0.6
+                              : 1,
+                            cursor: outOfStock
+                              ? "not-allowed"
+                              : "pointer",
+                          }}
+                          disabled={outOfStock}
+                          onClick={() =>
+                            handleAddToCart(product)
+                          }
+                        >
+                          {outOfStock
+                            ? "Hết hàng"
+                            : "Thêm vào giỏ"}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </section>
           ) : (
             <div style={styles.emptyBox}>
               <h3>Không tìm thấy sản phẩm</h3>
+
               <p>
-                Nếu Admin đã xóa hết sản phẩm thì trang này sẽ không còn hiện
-                sản phẩm nữa.
+                Hãy thử thay đổi từ khóa tìm kiếm
+                hoặc chọn danh mục khác.
               </p>
             </div>
           )}
@@ -324,7 +467,8 @@ const styles = {
   },
 
   titleBox: {
-    background: "linear-gradient(120deg, #eef6ff, #ffffff)",
+    background:
+      "linear-gradient(120deg, #eef6ff, #ffffff)",
     borderRadius: "12px",
     padding: "35px 40px",
     marginTop: "15px",
@@ -343,7 +487,8 @@ const styles = {
 
   filterBox: {
     display: "grid",
-    gridTemplateColumns: "1.5fr 1fr 1fr auto",
+    gridTemplateColumns:
+      "1.5fr 1fr 1fr auto",
     gap: "15px",
     marginBottom: "18px",
   },
@@ -383,7 +528,8 @@ const styles = {
 
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
+    gridTemplateColumns:
+      "repeat(4, minmax(0, 1fr))",
     gap: "22px",
   },
 
@@ -391,12 +537,13 @@ const styles = {
     border: "1px solid #e5e7eb",
     borderRadius: "12px",
     overflow: "hidden",
-    boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
+    boxShadow:
+      "0 8px 22px rgba(0,0,0,0.04)",
     backgroundColor: "white",
   },
 
   productImage: {
-    height: "160px",
+    height: "180px",
     backgroundColor: "#f3f8ff",
     display: "flex",
     alignItems: "center",
@@ -436,12 +583,19 @@ const styles = {
     color: "#6b7280",
     fontSize: "14px",
     minHeight: "40px",
+    lineHeight: "1.5",
   },
 
   price: {
     color: "#1769ff",
     fontSize: "20px",
     fontWeight: "800",
+    margin: "0 0 8px",
+  },
+
+  stock: {
+    color: "#6b7280",
+    fontSize: "14px",
     margin: "0 0 15px",
   },
 
@@ -468,7 +622,6 @@ const styles = {
     border: "none",
     borderRadius: "6px",
     fontWeight: "700",
-    cursor: "pointer",
   },
 
   emptyBox: {
