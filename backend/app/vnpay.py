@@ -17,18 +17,19 @@ from .orm_models import Order
 
 
 # =========================================================
-# ĐỌC CẤU HÌNH TỪ backend/.env
+# ĐỌC CẤU HÌNH MÔI TRƯỜNG
 # =========================================================
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 ENV_FILE = BACKEND_DIR / ".env"
 
-# override=True giúp ưu tiên dữ liệu trong backend/.env
-# thay vì dùng biến môi trường cũ đang tồn tại trên Windows.
-load_dotenv(
-    dotenv_path=ENV_FILE,
-    override=True,
-)
+# Khi chạy local: đọc backend/.env nếu file tồn tại.
+# Khi deploy Railway: biến môi trường Railway được ưu tiên.
+if ENV_FILE.exists():
+    load_dotenv(
+        dotenv_path=ENV_FILE,
+        override=False,
+    )
 
 
 # =========================================================
@@ -120,7 +121,7 @@ def check_vnpay_config() -> None:
         raise HTTPException(
             status_code=500,
             detail=(
-                "Thiếu cấu hình VNPAY trong backend/.env: "
+                "Thiếu biến môi trường VNPAY: "
                 + ", ".join(missing_variables)
             ),
         )
