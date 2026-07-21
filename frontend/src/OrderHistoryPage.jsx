@@ -1,8 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
-
-const API_URL = "http://127.0.0.1:8000";
+import api from "./api";
 
 const FALLBACK_IMAGE =
   "https://dummyimage.com/300x200/eef6ff/1769ff&text=ShopHub";
@@ -21,7 +19,11 @@ function OrderHistoryPage() {
         ? `${API_URL}/orders?user_email=${currentUser.email}`
         : `${API_URL}/orders`;
 
-      const res = await axios.get(url);
+      const res = await api.get(
+  currentUser?.email
+    ? `/orders?user_email=${currentUser.email}`
+    : "/orders"
+);
       setOrders(res.data);
     } catch (error) {
       console.error("Lỗi lấy đơn hàng:", error);
