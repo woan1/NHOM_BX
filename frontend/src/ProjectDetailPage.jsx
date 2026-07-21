@@ -1,9 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "./api";
 import { useCart } from "./CartContext";
-
-const API_URL = "http://127.0.0.1:8000";
 
 const FALLBACK_IMAGE =
   "https://dummyimage.com/600x400/eef6ff/1769ff&text=ShopHub";
@@ -13,65 +11,67 @@ function ProjectDetailPage() {
   const navigate = useNavigate();
   const { addToCart, cartCount } = useCart();
 
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
-
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const getImageUrl = (product) => {
-    const image = product?.image_url || product?.image;
+  let currentUser = null;
 
-    if (!image) return FALLBACK_IMAGE;
-
-    if (image.startsWith("http")) return image;
-
-    if (image.startsWith("/uploads")) return `${API_URL}${image}`;
-
-    if (image.startsWith("/images")) return image;
-
-    return image;
-  };
-
-  const getCategoryName = (product) => {
-    if (typeof product?.category === "object" && product?.category !== null) {
-      return product.category.name || "Khác";
-    }
-
-    return product?.category_name || product?.category || "Khác";
-  };
-
-  const formatPrice = (price) => {
-    return Number(price || 0).toLocaleString("vi-VN") + " đ";
-  };
+  try {
+    const savedUser = localStorage.getItem("currentUser");
+    currentUser = savedUser ? JSON.parse(savedUser) : null;
+  } catch (error) {
+    console.error("Lỗi đọc currentUser:", error);
+    localStorage.removeItem("currentUser");
+  }
 
   useEffect(() => {
     const fetchProductDetail = async () => {
+      setLoading(true);
+      setErrorMessage("");
+      setProduct(null);
+
       try {
-        setLoading(true);
-
         // Cách 1: gọi API chi tiết sản phẩm
-        try {
-          const res = await axios.get(`${API_URL}/products/${id}`);
-          setProduct(res.data);
+        const response = await api.get(`/products/${id}`);
+
+        if (response.data) {
+          setProduct(response.data);
           return;
-        } catch (detailError) {
-          console.warn("Không lấy được bằng /products/id, thử lấy từ danh sách...");
         }
+      } catch (detailError) {
+        console.warn(
+          "Không lấy được sản phẩm từ API chi tiết, chuyển sang lấy danh sách:",
+          detailError.response?.data || detailError.message
+        );
+      }
 
-        // Cách 2: nếu API /products/id lỗi, lấy danh sách rồi tìm theo id
-        const listRes = await axios.get(`${API_URL}/products`);
-        const data = Array.isArray(listRes.data)
-          ? listRes.data
-          : listRes.data.products || [];
+      try {
+        // Cách 2: gọi danh sách sản phẩm rồi tìm theo ID
+        const listResponse = await api.get("/products");
 
-        const foundProduct = data.find(
-          (item) => Number(item.id) === Number(id)
+        const productList = Array.isArray(listResponse.data)
+          ? listResponse.data
+          : listResponse.data?.products || [];
+
+        const foundProduct = productList.find(
+          (item) => String(item.id) === String(id)
         );
 
-        setProduct(foundProduct || null);
-      } catch (error) {
-        console.error("Lỗi lấy chi tiết sản phẩm:", error);
-        setProduct(null);
+        if (foundProduct) {
+          setProduct(foundProduct);
+        } else {
+          setErrorMessage("Không tìm thấy sản phẩm có mã này.");
+        }
+      } catch (listError) {
+        console.error(
+          "Lỗi lấy danh sách sản phẩm:",
+          listError.response?.data || listError.message
+        );
+
+        setErrorMessage(
+          "Không thể kết nối đến máy chủ để lấy thông tin sản phẩm."
+        );
       } finally {
         setLoading(false);
       }
@@ -80,22 +80,77 @@ function ProjectDetailPage() {
     fetchProductDetail();
   }, [id]);
 
+  const getImageUrl = (productData) => {
+    const image =
+      productData?.image_url ||
+      productData?.image;
+
+    if (!image) {
+      return FALLBACK_IMAGE;
+    }
+
+    if (image.startsWith("http://") || image.startsWith("https://")) {
+      return image;
+    }
+
+    if (image.startsWith("/uploads")) {
+      return `${api.defaults.baseURL}${image}`;
+    }
+
+    if (image.startsWith("/images")) {
+      return image;
+    }
+
+    return image;
+  };
+
+  const getCategoryName = (productData) => {
+    if (
+      typeof productData?.category === "object" &&
+      productData?.category !== null
+    ) {
+      return productData.category.name || "Khác";
+    }
+
+    return (
+      productData?.category_name ||
+      productData?.category ||
+      "Khác"
+    );
+  };
+
+  const formatPrice = (price) => {
+    return `${Number(price || 0).toLocaleString("vi-VN")} đ`;
+  };
+
   const handleAddToCart = () => {
-    if (!product) return;
+    if (!product) {
+      return;
+    }
+
+    const stock = Number(product.stock ?? 0);
+
+    if (stock <= 0) {
+      alert("Sản phẩm đã hết hàng.");
+      return;
+    }
 
     addToCart(product);
     alert(`Đã thêm "${product.name}" vào giỏ hàng`);
   };
 
-  const handleImageError = (e) => {
-    e.currentTarget.onerror = null;
-    e.currentTarget.src = FALLBACK_IMAGE;
+  const handleImageError = (event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src = FALLBACK_IMAGE;
   };
 
   if (loading) {
     return (
       <div style={styles.page}>
-        <Header currentUser={currentUser} cartCount={cartCount} />
+        <Header
+          currentUser={currentUser}
+          cartCount={cartCount}
+        />
 
         <div style={styles.emptyBox}>
           <h2>Đang tải chi tiết sản phẩm...</h2>
@@ -107,13 +162,24 @@ function ProjectDetailPage() {
   if (!product) {
     return (
       <div style={styles.page}>
-        <Header currentUser={currentUser} cartCount={cartCount} />
+        <Header
+          currentUser={currentUser}
+          cartCount={cartCount}
+        />
 
         <div style={styles.emptyBox}>
           <h1>Không tìm thấy sản phẩm</h1>
-          <p>Sản phẩm này không tồn tại hoặc đã bị xóa.</p>
 
-          <button style={styles.backBtn} onClick={() => navigate("/products")}>
+          <p>
+            {errorMessage ||
+              "Sản phẩm này không tồn tại hoặc đã bị xóa."}
+          </p>
+
+          <button
+            type="button"
+            style={styles.backBtn}
+            onClick={() => navigate("/products")}
+          >
             Quay lại sản phẩm
           </button>
         </div>
@@ -121,37 +187,71 @@ function ProjectDetailPage() {
     );
   }
 
+  const stock = Number(product.stock ?? 0);
+  const outOfStock = stock <= 0;
+
   return (
     <div style={styles.page}>
-      <Header currentUser={currentUser} cartCount={cartCount} />
+      <Header
+        currentUser={currentUser}
+        cartCount={cartCount}
+      />
 
       <section style={styles.detailBox}>
         <div style={styles.imageBox}>
           <img
             src={getImageUrl(product)}
-            alt={product.name}
+            alt={product.name || "Sản phẩm ShopHub"}
             style={styles.productImg}
             onError={handleImageError}
           />
         </div>
 
         <div style={styles.infoBox}>
-          <span style={styles.category}>{getCategoryName(product)}</span>
+          <span style={styles.category}>
+            {getCategoryName(product)}
+          </span>
 
-          <h1 style={styles.productName}>{product.name}</h1>
+          <h1 style={styles.productName}>
+            {product.name}
+          </h1>
 
           <p style={styles.description}>
-            {product.description || "Chưa có mô tả sản phẩm."}
+            {product.description ||
+              "Chưa có mô tả sản phẩm."}
           </p>
 
-          <p style={styles.price}>{formatPrice(product.price)}</p>
+          <p style={styles.price}>
+            {formatPrice(product.price)}
+          </p>
+
+          <p style={styles.stock}>
+            Kho: {stock} sản phẩm
+          </p>
 
           <div style={styles.actions}>
-            <button style={styles.cartBtn} onClick={handleAddToCart}>
-              Thêm vào giỏ hàng
+            <button
+              type="button"
+              style={{
+                ...styles.cartBtn,
+                opacity: outOfStock ? 0.6 : 1,
+                cursor: outOfStock
+                  ? "not-allowed"
+                  : "pointer",
+              }}
+              onClick={handleAddToCart}
+              disabled={outOfStock}
+            >
+              {outOfStock
+                ? "Hết hàng"
+                : "Thêm vào giỏ hàng"}
             </button>
 
-            <button style={styles.backBtn} onClick={() => navigate("/products")}>
+            <button
+              type="button"
+              style={styles.backBtn}
+              onClick={() => navigate("/products")}
+            >
               Quay lại sản phẩm
             </button>
           </div>
@@ -162,12 +262,20 @@ function ProjectDetailPage() {
 }
 
 function Header({ currentUser, cartCount }) {
+  const isAdmin =
+    currentUser?.role === "admin" ||
+    currentUser?.role === "ADMIN";
+
   return (
     <header style={styles.header}>
       <Link to="/" style={styles.logo}>
         <div style={styles.logoBox}>S</div>
+
         <h1 style={styles.logoText}>
-          Shop<span style={{ color: "#1769ff" }}>Hub</span>
+          Shop
+          <span style={{ color: "#1769ff" }}>
+            Hub
+          </span>
         </h1>
       </Link>
 
@@ -176,7 +284,10 @@ function Header({ currentUser, cartCount }) {
           Trang chủ
         </Link>
 
-        <Link style={styles.activeLink} to="/products">
+        <Link
+          style={styles.activeLink}
+          to="/products"
+        >
           Sản phẩm
         </Link>
 
@@ -188,8 +299,11 @@ function Header({ currentUser, cartCount }) {
           Đơn hàng 🧾
         </Link>
 
-        {currentUser?.role === "admin" && (
-          <Link style={styles.navLink} to="/admin/products">
+        {isAdmin && (
+          <Link
+            style={styles.navLink}
+            to="/admin/products"
+          >
             Admin
           </Link>
         )}
@@ -322,6 +436,12 @@ const styles = {
     color: "#1769ff",
     fontSize: "30px",
     fontWeight: "800",
+    marginBottom: "10px",
+  },
+
+  stock: {
+    color: "#4b5563",
+    fontSize: "16px",
     marginBottom: "25px",
   },
 
@@ -337,7 +457,6 @@ const styles = {
     borderRadius: "8px",
     padding: "14px 24px",
     fontWeight: "700",
-    cursor: "pointer",
     fontSize: "16px",
   },
 
