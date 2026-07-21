@@ -39,13 +39,29 @@ function AdminDashboardPage() {
     try {
       setLoading(true);
 
-      const statsRes = await api.get("/dashboard/stats");
-      const revenueRes = await api.get(`/dashboard/revenue?group_by=${revenueType}`);
-      const ordersRes = await api.get("/orders");
+      // Tải thống kê và doanh thu trước
+      const [statsRes, revenueRes] = await Promise.all([
+        api.get("/dashboard/stats"),
+        api.get(`/dashboard/revenue?group_by=${revenueType}`),
+      ]);
 
-      setStats(statsRes.data);
-      setRevenueData(revenueRes.data);
-      setOrders(ordersRes.data.slice(0, 5));
+      setStats(statsRes.data || {});
+      setRevenueData(Array.isArray(revenueRes.data) ? revenueRes.data : []);
+
+      // Đơn hàng không được phép làm hỏng toàn bộ Dashboard
+      try {
+        const ordersRes = await api.get("/orders");
+        const orderList = Array.isArray(ordersRes.data)
+          ? ordersRes.data
+          : Array.isArray(ordersRes.data?.orders)
+          ? ordersRes.data.orders
+          : [];
+
+        setOrders(orderList.slice(0, 5));
+      } catch (ordersError) {
+        console.error("Lỗi tải đơn hàng mới:", ordersError);
+        setOrders([]);
+      }
     } catch (error) {
       console.error("Lỗi tải dashboard:", error);
 
@@ -157,7 +173,13 @@ function AdminDashboardPage() {
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={styles.th}>Tháng</th>
+                      <th style={styles.th}>
+                        {revenueType === "day"
+                          ? "Ngày"
+                          : revenueType === "year"
+                          ? "Năm"
+                          : "Tháng"}
+                      </th>
                       <th style={styles.th}>Doanh thu</th>
                     </tr>
                   </thead>
@@ -178,7 +200,7 @@ function AdminDashboardPage() {
               <div style={styles.panelHeader}>
                 <h2>Đơn hàng mới</h2>
 
-                <Link to="/admin/orders" style={styles.viewAllLink}>
+                <Link to="/admin/orders" style={styles.viewAll}>
   Xem tất cả
 </Link>
               </div>
@@ -202,7 +224,7 @@ function AdminDashboardPage() {
                       </div>
 
                       <strong style={styles.orderPrice}>
-                        {formatPrice(order.total_price || order.total)}
+                        {formatPrice(order.total_amount || order.total_price || order.total)}
                       </strong>
                     </div>
                   ))}
