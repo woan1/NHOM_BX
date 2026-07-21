@@ -2,32 +2,45 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "./api";
 
+const API_URL = api.defaults.baseURL;
+
 const FALLBACK_IMAGE =
   "https://dummyimage.com/300x200/eef6ff/1769ff&text=ShopHub";
 
 function OrderHistoryPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const [errorMessage, setErrorMessage] = useState("");
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      setErrorMessage("");
 
-      const url = currentUser?.email
-        ? `${API_URL}/orders?user_email=${currentUser.email}`
-        : `${API_URL}/orders`;
+      const response = await api.get("/orders/my-orders");
 
-      const res = await api.get(
-  currentUser?.email
-    ? `/orders?user_email=${currentUser.email}`
-    : "/orders"
-);
-      setOrders(res.data);
+      const orderData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.orders || [];
+
+      setOrders(orderData);
     } catch (error) {
-      console.error("Lỗi lấy đơn hàng:", error);
+      console.error("Lỗi lấy lịch sử đơn hàng:", error);
+
       setOrders([]);
+
+      if (error.response?.status === 401) {
+        setErrorMessage(
+          "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại."
+        );
+      } else if (error.response?.status === 403) {
+        setErrorMessage("Bạn không có quyền xem danh sách đơn hàng.");
+      } else {
+        setErrorMessage(
+          error.response?.data?.detail ||
+            "Không thể tải lịch sử đơn hàng."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -38,14 +51,20 @@ function OrderHistoryPage() {
   }, []);
 
   const formatPrice = (price) => {
-    return Number(price).toLocaleString("vi-VN") + " đ";
+    return `${Number(price || 0).toLocaleString("vi-VN")} đ`;
   };
 
   const formatDate = (order) => {
-    if (order.date) return order.date;
+    if (order.date) {
+      return order.date;
+    }
 
     if (order.created_at) {
-      return new Date(order.created_at).toLocaleString("vi-VN");
+      const date = new Date(order.created_at);
+
+      if (!Number.isNaN(date.getTime())) {
+        return date.toLocaleString("vi-VN");
+      }
     }
 
     return "Chưa có ngày";
@@ -53,25 +72,28 @@ function OrderHistoryPage() {
 
   const getOrderImage = (item) => {
     const image =
-      item.image_url || item.product_image || item.image || item.productImage;
+      item.image_url ||
+      item.product_image ||
+      item.image ||
+      item.productImage;
 
-    if (!image) return FALLBACK_IMAGE;
-
-    if (image.startsWith("http")) return image;
-
-    if (image.startsWith("/uploads")) {
-      return `${API_URL}${image}`;
+    if (!image) {
+      return FALLBACK_IMAGE;
     }
 
-    if (image.startsWith("uploads")) {
-      return `${API_URL}/${image}`;
+    if (image.startsWith("http://") || image.startsWith("https://")) {
+      return image;
     }
 
     if (image.startsWith("/images")) {
       return image;
     }
 
-    return image;
+    if (image.startsWith("/")) {
+      return `${API_URL}${image}`;
+    }
+
+    return `${API_URL}/${image}`;
   };
 
   const getProductName = (item) => {
@@ -82,9 +104,9 @@ function OrderHistoryPage() {
     return item.product_category || item.category || "Khác";
   };
 
-  const handleImageError = (e) => {
-    e.currentTarget.onerror = null;
-    e.currentTarget.src = FALLBACK_IMAGE;
+  const handleImageError = (event) => {
+    event.currentTarget.onerror = null;
+    event.currentTarget.src = FALLBACK_IMAGE;
   };
 
   const getPaymentStatusText = (paymentStatus) => {
@@ -100,6 +122,13 @@ function OrderHistoryPage() {
       return "Thanh toán thất bại";
     }
 
+    if (
+      normalizedStatus === "CANCELLED" ||
+      normalizedStatus === "CANCELED"
+    ) {
+      return "Đã hủy thanh toán";
+    }
+
     return "Chưa thanh toán";
   };
 
@@ -112,11 +141,33 @@ function OrderHistoryPage() {
       return styles.paymentPaid;
     }
 
-    if (normalizedStatus === "FAILED") {
+    if (
+      normalizedStatus === "FAILED" ||
+      normalizedStatus === "CANCELLED" ||
+      normalizedStatus === "CANCELED"
+    ) {
       return styles.paymentFailed;
     }
 
     return styles.paymentPending;
+  };
+
+  const getOrderStatusStyle = (orderStatus) => {
+    const status = String(orderStatus || "Đang xử lý").toLowerCase();
+
+    if (status.includes("hoàn thành")) {
+      return styles.statusCompleted;
+    }
+
+    if (status.includes("đã hủy")) {
+      return styles.statusCancelled;
+    }
+
+    if (status.includes("đang giao")) {
+      return styles.statusShipping;
+    }
+
+    return styles.statusPending;
   };
 
   return (
@@ -124,6 +175,7 @@ function OrderHistoryPage() {
       <header style={styles.header}>
         <Link to="/" style={styles.logo}>
           <div style={styles.logoBox}>S</div>
+
           <h1 style={styles.logoText}>
             Shop<span style={{ color: "#1769ff" }}>Hub</span>
           </h1>
@@ -150,6 +202,7 @@ function OrderHistoryPage() {
 
       <section style={styles.titleBox}>
         <h1 style={styles.title}>Lịch sử đơn hàng</h1>
+
         <p style={styles.subtitle}>
           Theo dõi các đơn hàng đã đặt trên ShopHub.
         </p>
@@ -159,13 +212,48 @@ function OrderHistoryPage() {
         <div style={styles.emptyBox}>
           <h2>Đang tải đơn hàng...</h2>
         </div>
+      ) : errorMessage ? (
+        <div style={styles.errorBox}>
+          <h2>Không thể tải đơn hàng</h2>
+
+          <p>{errorMessage}</p>
+
+          <div style={styles.buttonRow}>
+            <button
+              type="button"
+              onClick={fetchOrders}
+              style={styles.refreshButton}
+            >
+              Thử lại
+            </button>
+
+            {errorMessage.includes("đăng nhập") && (
+              <Link to="/login">
+                <button
+                  type="button"
+                  style={styles.primaryButton}
+                >
+                  Đăng nhập
+                </button>
+              </Link>
+            )}
+          </div>
+        </div>
       ) : orders.length === 0 ? (
         <div style={styles.emptyBox}>
           <h2>Chưa có đơn hàng nào</h2>
-          <p>Bạn hãy mua sản phẩm và thanh toán để tạo đơn hàng.</p>
+
+          <p>
+            Bạn hãy mua sản phẩm và thanh toán để tạo đơn hàng.
+          </p>
 
           <Link to="/products">
-            <button style={styles.primaryButton}>Mua sắm ngay</button>
+            <button
+              type="button"
+              style={styles.primaryButton}
+            >
+              Mua sắm ngay
+            </button>
           </Link>
         </div>
       ) : (
@@ -175,7 +263,11 @@ function OrderHistoryPage() {
               Tổng số đơn hàng: <b>{orders.length}</b>
             </p>
 
-            <button onClick={fetchOrders} style={styles.refreshButton}>
+            <button
+              type="button"
+              onClick={fetchOrders}
+              style={styles.refreshButton}
+            >
               Làm mới
             </button>
           </div>
@@ -185,25 +277,41 @@ function OrderHistoryPage() {
               <div key={order.id} style={styles.orderCard}>
                 <div style={styles.orderHeader}>
                   <div>
-                    <h2 style={styles.orderId}>Mã đơn: DH{order.id}</h2>
+                    <h2 style={styles.orderId}>
+                      Mã đơn: DH{order.id}
+                    </h2>
+
                     <p style={styles.orderDate}>
                       Ngày đặt: {formatDate(order)}
                     </p>
                   </div>
 
-                  <span style={styles.status}>
+                  <span
+                    style={{
+                      ...styles.status,
+                      ...getOrderStatusStyle(order.status),
+                    }}
+                  >
                     {order.status || "Đang xử lý"}
                   </span>
                 </div>
 
                 <div style={styles.customerBox}>
-                  <h3>Thông tin khách hàng</h3>
+                  <h3 style={styles.sectionTitle}>
+                    Thông tin khách hàng
+                  </h3>
 
                   <p>
                     <b>Họ tên:</b>{" "}
                     {order.shipping_name ||
+                      order.customer_name ||
                       order.customer?.fullName ||
                       "Chưa có"}
+                  </p>
+
+                  <p>
+                    <b>Email:</b>{" "}
+                    {order.user_email || "Chưa có"}
                   </p>
 
                   <p>
@@ -232,58 +340,92 @@ function OrderHistoryPage() {
                     <span
                       style={{
                         ...styles.paymentStatus,
-                        ...getPaymentStatusStyle(order.payment_status),
+                        ...getPaymentStatusStyle(
+                          order.payment_status
+                        ),
                       }}
                     >
-                      {getPaymentStatusText(order.payment_status)}
+                      {getPaymentStatusText(
+                        order.payment_status
+                      )}
                     </span>
                   </p>
 
+                  {order.vnp_transaction_no && (
+                    <p>
+                      <b>Mã giao dịch VNPAY:</b>{" "}
+                      {order.vnp_transaction_no}
+                    </p>
+                  )}
+
                   {(order.note || order.customer?.note) && (
                     <p>
-                      <b>Ghi chú:</b> {order.note || order.customer?.note}
+                      <b>Ghi chú:</b>{" "}
+                      {order.note || order.customer?.note}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <h3>Sản phẩm</h3>
+                  <h3 style={styles.sectionTitle}>Sản phẩm</h3>
 
-                  {order.items?.map((item) => (
-                    <div key={item.id} style={styles.productRow}>
-                      <div style={styles.icon}>
-                        <img
-                          src={getOrderImage(item)}
-                          alt={getProductName(item)}
-                          style={styles.productImg}
-                          onError={handleImageError}
-                        />
+                  {Array.isArray(order.items) &&
+                  order.items.length > 0 ? (
+                    order.items.map((item, index) => (
+                      <div
+                        key={
+                          item.id ||
+                          `${order.id}-${item.product_id}-${index}`
+                        }
+                        style={styles.productRow}
+                      >
+                        <div style={styles.icon}>
+                          <img
+                            src={getOrderImage(item)}
+                            alt={getProductName(item)}
+                            style={styles.productImg}
+                            onError={handleImageError}
+                          />
+                        </div>
+
+                        <div style={styles.productContent}>
+                          <h4 style={styles.productName}>
+                            {getProductName(item)}
+                          </h4>
+
+                          <p style={styles.productInfo}>
+                            {getCategoryName(item)} - SL:{" "}
+                            {item.quantity || 0}
+                          </p>
+
+                          <p style={styles.productInfo}>
+                            Đơn giá: {formatPrice(item.price)}
+                          </p>
+                        </div>
+
+                        <strong>
+                          {formatPrice(
+                            item.subtotal ??
+                              Number(item.price || 0) *
+                                Number(item.quantity || 0)
+                          )}
+                        </strong>
                       </div>
-
-                      <div style={{ flex: 1 }}>
-                        <h4 style={styles.productName}>
-                          {getProductName(item)}
-                        </h4>
-
-                        <p style={styles.productInfo}>
-                          {getCategoryName(item)} - SL: {item.quantity}
-                        </p>
-                      </div>
-
-                      <strong>
-                        {formatPrice(
-                          item.subtotal ||
-                            Number(item.price) * Number(item.quantity)
-                        )}
-                      </strong>
-                    </div>
-                  ))}
+                    ))
+                  ) : (
+                    <p>Không có thông tin sản phẩm.</p>
+                  )}
                 </div>
 
                 <div style={styles.totalBox}>
-                  <h2>Tổng tiền:</h2>
-                  <h2 style={{ color: "#1769ff" }}>
-                    {formatPrice(order.total_price || order.total)}
+                  <h2 style={styles.totalLabel}>
+                    Tổng tiền:
+                  </h2>
+
+                  <h2 style={styles.totalPrice}>
+                    {formatPrice(
+                      order.total_price ?? order.total
+                    )}
                   </h2>
                 </div>
               </div>
@@ -316,14 +458,14 @@ const styles = {
     alignItems: "center",
     gap: "12px",
     textDecoration: "none",
-    color: "black",
+    color: "#111827",
   },
 
   logoBox: {
     width: "42px",
     height: "42px",
     backgroundColor: "#1769ff",
-    color: "white",
+    color: "#ffffff",
     borderRadius: "10px",
     fontSize: "26px",
     fontWeight: "800",
@@ -345,7 +487,7 @@ const styles = {
   },
 
   navLink: {
-    color: "black",
+    color: "#111827",
     textDecoration: "none",
     fontWeight: "600",
   },
@@ -359,7 +501,8 @@ const styles = {
   },
 
   titleBox: {
-    background: "linear-gradient(120deg, #eef6ff, #ffffff)",
+    background:
+      "linear-gradient(120deg, #eef6ff, #ffffff)",
     borderRadius: "12px",
     padding: "35px 40px",
     marginTop: "15px",
@@ -383,10 +526,25 @@ const styles = {
     borderRadius: "12px",
   },
 
+  errorBox: {
+    textAlign: "center",
+    padding: "60px",
+    border: "1px solid #fecaca",
+    borderRadius: "12px",
+    backgroundColor: "#fff7f7",
+  },
+
+  buttonRow: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "12px",
+    marginTop: "20px",
+  },
+
   primaryButton: {
     padding: "12px 22px",
     backgroundColor: "#1769ff",
-    color: "white",
+    color: "#ffffff",
     border: "none",
     borderRadius: "7px",
     cursor: "pointer",
@@ -403,7 +561,7 @@ const styles = {
   refreshButton: {
     padding: "11px 20px",
     backgroundColor: "#111827",
-    color: "white",
+    color: "#ffffff",
     border: "none",
     borderRadius: "7px",
     cursor: "pointer",
@@ -426,6 +584,7 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: "20px",
     borderBottom: "1px solid #e5e7eb",
     paddingBottom: "15px",
     marginBottom: "15px",
@@ -442,11 +601,30 @@ const styles = {
   },
 
   status: {
-    backgroundColor: "#dbeafe",
-    color: "#1769ff",
     padding: "8px 16px",
     borderRadius: "20px",
     fontWeight: "800",
+    whiteSpace: "nowrap",
+  },
+
+  statusPending: {
+    backgroundColor: "#dbeafe",
+    color: "#1769ff",
+  },
+
+  statusShipping: {
+    backgroundColor: "#fef3c7",
+    color: "#b45309",
+  },
+
+  statusCompleted: {
+    backgroundColor: "#dcfce7",
+    color: "#15803d",
+  },
+
+  statusCancelled: {
+    backgroundColor: "#fee2e2",
+    color: "#b91c1c",
   },
 
   customerBox: {
@@ -454,6 +632,10 @@ const styles = {
     padding: "15px 18px",
     borderRadius: "10px",
     marginBottom: "15px",
+  },
+
+  sectionTitle: {
+    marginTop: 0,
   },
 
   paymentStatus: {
@@ -488,14 +670,15 @@ const styles = {
   },
 
   icon: {
-    width: "60px",
-    height: "60px",
+    width: "70px",
+    height: "70px",
     backgroundColor: "#f3f8ff",
     borderRadius: "10px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    flexShrink: 0,
   },
 
   productImg: {
@@ -505,19 +688,33 @@ const styles = {
     padding: "5px",
   },
 
+  productContent: {
+    flex: 1,
+  },
+
   productName: {
     margin: "0 0 5px",
   },
 
   productInfo: {
-    margin: 0,
+    margin: "3px 0",
     color: "#6b7280",
   },
 
   totalBox: {
     display: "flex",
     justifyContent: "space-between",
+    alignItems: "center",
     marginTop: "20px",
+  },
+
+  totalLabel: {
+    margin: 0,
+  },
+
+  totalPrice: {
+    margin: 0,
+    color: "#1769ff",
   },
 };
 
