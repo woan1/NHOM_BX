@@ -14,7 +14,8 @@ function AdminDashboardPage() {
     total_revenue: 0,
   });
 
-  const [monthlyRevenue, setMonthlyRevenue] = useState([]);
+  const [revenueType, setRevenueType] = useState("month");
+  const [revenueData, setRevenueData] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,18 +33,18 @@ function AdminDashboardPage() {
     }
 
     fetchDashboardData();
-  }, []);
+  }, [revenueType]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
 
       const statsRes = await api.get("/dashboard/stats");
-      const revenueRes = await api.get("/dashboard/monthly-revenue");
+      const revenueRes = await api.get(`/dashboard/revenue?group_by=${revenueType}`);
       const ordersRes = await api.get("/orders");
 
       setStats(statsRes.data);
-      setMonthlyRevenue(revenueRes.data);
+      setRevenueData(revenueRes.data);
       setOrders(ordersRes.data.slice(0, 5));
     } catch (error) {
       console.error("Lỗi tải dashboard:", error);
@@ -141,14 +142,16 @@ function AdminDashboardPage() {
           <section style={styles.contentGrid}>
             <div style={styles.panel}>
               <div style={styles.panelHeader}>
-                <h2>Doanh thu theo tháng</h2>
+                <h2>Doanh thu</h2>
 
-                <button onClick={fetchDashboardData} style={styles.refreshBtn}>
-                  Làm mới
-                </button>
+                <div style={{display:"flex",gap:"8px"}}>
+                  <button onClick={()=>setRevenueType("day")} style={styles.refreshBtn}>Ngày</button>
+                  <button onClick={()=>setRevenueType("month")} style={styles.refreshBtn}>Tháng</button>
+                  <button onClick={()=>setRevenueType("year")} style={styles.refreshBtn}>Năm</button>
+                </div>
               </div>
 
-              {monthlyRevenue.length === 0 ? (
+              {revenueData.length === 0 ? (
                 <p style={styles.muted}>Chưa có dữ liệu doanh thu.</p>
               ) : (
                 <table style={styles.table}>
@@ -160,9 +163,9 @@ function AdminDashboardPage() {
                   </thead>
 
                   <tbody>
-                    {monthlyRevenue.map((item) => (
-                      <tr key={item.month}>
-                        <td style={styles.td}>{item.month}</td>
+                    {revenueData.map((item) => (
+                      <tr key={item.period}>
+                        <td style={styles.td}>{item.period}</td>
                         <td style={styles.td}>{formatPrice(item.revenue)}</td>
                       </tr>
                     ))}

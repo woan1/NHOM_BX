@@ -2,6 +2,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import shutil
 import uuid
+from typing import Literal
 
 from fastapi import (
     Depends,
@@ -10,6 +11,7 @@ from fastapi import (
     HTTPException,
     Request,
     UploadFile,
+    Query,
     status,
 )
 from fastapi.middleware.cors import CORSMiddleware
@@ -1395,23 +1397,18 @@ def get_dashboard_stats(
         require_admin
     ),
 ):
-    total_products = (
-        db.query(Product).count()
-    )
-
-    total_orders = (
-        db.query(Order).count()
-    )
-
-    total_users = (
-        db.query(User).count()
-    )
+    total_products = db.query(Product).count()
+    total_orders = db.query(Order).count()
+    total_users = db.query(User).count()
 
     # Chỉ tính doanh thu từ đơn đã thanh toán
     # và không tính đơn đã hủy.
     total_revenue = (
         db.query(
-            func.sum(Order.total_price)
+            func.coalesce(
+                func.sum(Order.total_price),
+                0,
+            )
         )
         .filter(
             Order.payment_status == "PAID",
@@ -1420,19 +1417,81 @@ def get_dashboard_stats(
         .scalar()
     )
 
-    if total_revenue is None:
-        total_revenue = 0
-
     return {
         "total_products": total_products,
         "total_orders": total_orders,
         "total_users": total_users,
         "total_revenue": int(
-            total_revenue
+            total_revenue or 0
         ),
     }
 
 
+@app.get("/dashboard/revenue")
+def get_revenue(
+    group_by: Literal[
+        "day",
+        "month",
+        "year",
+    ] = Query(default="month"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_admin
+    ),
+):
+    """
+    group_by=day   -> doanh thu theo ngày
+    group_by=month -> doanh thu theo tháng
+    group_by=year  -> doanh thu theo năm
+    """
+
+    if group_by == "day":
+        period_expression = func.to_char(
+            Order.created_at,
+            "YYYY-MM-DD",
+        )
+    elif group_by == "year":
+        period_expression = func.to_char(
+            Order.created_at,
+            "YYYY",
+        )
+    else:
+        period_expression = func.to_char(
+            Order.created_at,
+            "YYYY-MM",
+        )
+
+    results = (
+        db.query(
+            period_expression.label(
+                "period"
+            ),
+            func.coalesce(
+                func.sum(Order.total_price),
+                0,
+            ).label("revenue"),
+        )
+        .filter(
+            Order.payment_status == "PAID",
+            Order.status != "Đã hủy",
+        )
+        .group_by(period_expression)
+        .order_by(period_expression.desc())
+        .all()
+    )
+
+    return [
+        {
+            "period": row.period,
+            "revenue": int(
+                row.revenue or 0
+            ),
+        }
+        for row in results
+    ]
+
+
+# Giữ lại API cũ để frontend cũ vẫn chạy được
 @app.get("/dashboard/monthly-revenue")
 def get_monthly_revenue(
     db: Session = Depends(get_db),
@@ -1450,8 +1509,9 @@ def get_monthly_revenue(
             month_expression.label(
                 "month"
             ),
-            func.sum(
-                Order.total_price
+            func.coalesce(
+                func.sum(Order.total_price),
+                0,
             ).label("revenue"),
         )
         .filter(
@@ -1459,7 +1519,7 @@ def get_monthly_revenue(
             Order.status != "Đã hủy",
         )
         .group_by(month_expression)
-        .order_by(month_expression)
+        .order_by(month_expression.desc())
         .all()
     )
 
