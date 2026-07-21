@@ -1,32 +1,32 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
-
-const API_URL = "http://127.0.0.1:8000";
+import api from "./api";
 
 function AdminOrderPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const getToken = () => {
-    return (
-      localStorage.getItem("accessToken") ||
-      localStorage.getItem("token") ||
-      localStorage.getItem("access_token") ||
-      localStorage.getItem("authToken")
-    );
-  };
-
   const fetchOrders = async () => {
     try {
       setLoading(true);
 
-      const response = await axios.get(`${API_URL}/orders`);
-      setOrders(response.data);
+      const response = await api.get("/orders");
+
+      const orderData = Array.isArray(response.data)
+        ? response.data
+        : response.data?.orders || [];
+
+      setOrders(orderData);
     } catch (error) {
       console.error("Lỗi lấy danh sách đơn hàng:", error);
-      alert("Không thể tải danh sách đơn hàng.");
+
+      alert(
+        error.response?.data?.detail ||
+          "Không thể tải danh sách đơn hàng."
+      );
+
+      setOrders([]);
     } finally {
       setLoading(false);
     }
@@ -40,17 +40,10 @@ function AdminOrderPage() {
     try {
       setUpdatingId(orderId);
 
-      const token = getToken();
-
-      const response = await axios.put(
-        `${API_URL}/orders/${orderId}/status`,
+      const response = await api.put(
+        `/orders/${orderId}/status`,
         {
           status: newStatus,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
         }
       );
 
@@ -59,10 +52,14 @@ function AdminOrderPage() {
           order.id === orderId ? response.data : order
         )
       );
+
+      alert("Cập nhật trạng thái đơn hàng thành công.");
     } catch (error) {
       console.error("Lỗi cập nhật trạng thái:", error);
 
-      if (error.response?.status === 403) {
+      if (error.response?.status === 401) {
+        alert("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.");
+      } else if (error.response?.status === 403) {
         alert("Tài khoản của bạn không có quyền ADMIN.");
       } else {
         alert(
@@ -76,30 +73,49 @@ function AdminOrderPage() {
   };
 
   const formatPrice = (price) => {
-    return Number(price || 0).toLocaleString("vi-VN") + " đ";
+    return `${Number(price || 0).toLocaleString("vi-VN")} đ`;
   };
 
   const formatDate = (order) => {
-    if (order.date) return order.date;
+    if (order.date) {
+      return order.date;
+    }
 
     if (order.created_at) {
-      return new Date(order.created_at).toLocaleString("vi-VN");
+      const date = new Date(order.created_at);
+
+      if (!Number.isNaN(date.getTime())) {
+        return date.toLocaleString("vi-VN");
+      }
     }
 
     return "Chưa có";
   };
 
   const getPaymentText = (paymentStatus) => {
-    const status = String(paymentStatus || "PENDING").toUpperCase();
+    const status = String(
+      paymentStatus || "PENDING"
+    ).toUpperCase();
 
-    if (status === "PAID") return "Đã thanh toán";
-    if (status === "FAILED") return "Thanh toán thất bại";
+    if (status === "PAID") {
+      return "Đã thanh toán";
+    }
+
+    if (status === "FAILED") {
+      return "Thanh toán thất bại";
+    }
+
+    if (status === "CANCELLED") {
+      return "Đã hủy thanh toán";
+    }
 
     return "Chưa thanh toán";
   };
 
   const getPaymentStyle = (paymentStatus) => {
-    const status = String(paymentStatus || "PENDING").toUpperCase();
+    const status = String(
+      paymentStatus || "PENDING"
+    ).toUpperCase();
 
     if (status === "PAID") {
       return {
@@ -108,7 +124,7 @@ function AdminOrderPage() {
       };
     }
 
-    if (status === "FAILED") {
+    if (status === "FAILED" || status === "CANCELLED") {
       return {
         backgroundColor: "#fee2e2",
         color: "#b91c1c",
@@ -153,6 +169,7 @@ function AdminOrderPage() {
 
       <section style={styles.titleBox}>
         <h1 style={styles.title}>Quản lý đơn hàng</h1>
+
         <p style={styles.subtitle}>
           Theo dõi thanh toán và cập nhật trạng thái giao hàng.
         </p>
@@ -163,22 +180,33 @@ function AdminOrderPage() {
           Tổng số đơn hàng: <b>{orders.length}</b>
         </p>
 
-        <button style={styles.refreshButton} onClick={fetchOrders}>
-          Làm mới
+        <button
+          type="button"
+          style={styles.refreshButton}
+          onClick={fetchOrders}
+          disabled={loading}
+        >
+          {loading ? "Đang tải..." : "Làm mới"}
         </button>
       </div>
 
       {loading ? (
-        <div style={styles.messageBox}>Đang tải đơn hàng...</div>
+        <div style={styles.messageBox}>
+          Đang tải đơn hàng...
+        </div>
       ) : orders.length === 0 ? (
-        <div style={styles.messageBox}>Chưa có đơn hàng nào.</div>
+        <div style={styles.messageBox}>
+          Chưa có đơn hàng nào.
+        </div>
       ) : (
         <div style={styles.orderList}>
           {orders.map((order) => (
             <div key={order.id} style={styles.orderCard}>
               <div style={styles.orderHeader}>
                 <div>
-                  <h2 style={styles.orderId}>Đơn hàng DH{order.id}</h2>
+                  <h2 style={styles.orderId}>
+                    Đơn hàng DH{order.id}
+                  </h2>
 
                   <p style={styles.date}>
                     Ngày đặt: {formatDate(order)}
@@ -186,7 +214,9 @@ function AdminOrderPage() {
                 </div>
 
                 <strong style={styles.totalPrice}>
-                  {formatPrice(order.total_price || order.total)}
+                  {formatPrice(
+                    order.total_price ?? order.total
+                  )}
                 </strong>
               </div>
 
@@ -196,24 +226,36 @@ function AdminOrderPage() {
                     <b>Khách hàng:</b>{" "}
                     {order.shipping_name ||
                       order.customer_name ||
+                      order.customer?.fullName ||
                       "Chưa có"}
                   </p>
 
                   <p>
+                    <b>Email:</b>{" "}
+                    {order.user_email || "Chưa có"}
+                  </p>
+
+                  <p>
                     <b>Số điện thoại:</b>{" "}
-                    {order.shipping_phone || "Chưa có"}
+                    {order.shipping_phone ||
+                      order.customer?.phone ||
+                      "Chưa có"}
                   </p>
 
                   <p>
                     <b>Địa chỉ:</b>{" "}
-                    {order.shipping_address || "Chưa có"}
+                    {order.shipping_address ||
+                      order.customer?.address ||
+                      "Chưa có"}
                   </p>
                 </div>
 
                 <div>
                   <p>
                     <b>Phương thức:</b>{" "}
-                    {order.payment_method || "COD"}
+                    {order.payment_method ||
+                      order.customer?.paymentMethod ||
+                      "COD"}
                   </p>
 
                   <p>
@@ -221,19 +263,70 @@ function AdminOrderPage() {
                     <span
                       style={{
                         ...styles.paymentBadge,
-                        ...getPaymentStyle(order.payment_status),
+                        ...getPaymentStyle(
+                          order.payment_status
+                        ),
                       }}
                     >
-                      {getPaymentText(order.payment_status)}
+                      {getPaymentText(
+                        order.payment_status
+                      )}
                     </span>
                   </p>
 
                   <p>
                     <b>Mã VNPAY:</b>{" "}
-                    {order.vnp_transaction_no || "Chưa có"}
+                    {order.vnp_transaction_no ||
+                      order.vnp_txn_ref ||
+                      "Chưa có"}
                   </p>
+
+                  {order.note && (
+                    <p>
+                      <b>Ghi chú:</b> {order.note}
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {Array.isArray(order.items) &&
+                order.items.length > 0 && (
+                  <div style={styles.itemsBox}>
+                    <h3 style={styles.itemsTitle}>
+                      Sản phẩm
+                    </h3>
+
+                    {order.items.map((item) => (
+                      <div
+                        key={
+                          item.id ||
+                          `${order.id}-${item.product_id}`
+                        }
+                        style={styles.itemRow}
+                      >
+                        <div>
+                          <strong>
+                            {item.product_name ||
+                              item.name ||
+                              "Sản phẩm"}
+                          </strong>
+
+                          <p style={styles.itemInfo}>
+                            Số lượng: {item.quantity || 0}
+                          </p>
+                        </div>
+
+                        <span>
+                          {formatPrice(
+                            item.subtotal ??
+                              Number(item.price || 0) *
+                                Number(item.quantity || 0)
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
               <div style={styles.statusRow}>
                 <label style={styles.statusLabel}>
@@ -245,13 +338,27 @@ function AdminOrderPage() {
                   value={order.status || "Đang xử lý"}
                   disabled={updatingId === order.id}
                   onChange={(event) =>
-                    updateOrderStatus(order.id, event.target.value)
+                    updateOrderStatus(
+                      order.id,
+                      event.target.value
+                    )
                   }
                 >
-                  <option value="Đang xử lý">Đang xử lý</option>
-                  <option value="Đang giao">Đang giao</option>
-                  <option value="Hoàn thành">Hoàn thành</option>
-                  <option value="Đã hủy">Đã hủy</option>
+                  <option value="Đang xử lý">
+                    Đang xử lý
+                  </option>
+
+                  <option value="Đang giao">
+                    Đang giao
+                  </option>
+
+                  <option value="Hoàn thành">
+                    Hoàn thành
+                  </option>
+
+                  <option value="Đã hủy">
+                    Đã hủy
+                  </option>
                 </select>
 
                 {updatingId === order.id && (
@@ -329,7 +436,8 @@ const styles = {
   },
 
   titleBox: {
-    background: "linear-gradient(120deg, #eef6ff, #ffffff)",
+    background:
+      "linear-gradient(120deg, #eef6ff, #ffffff)",
     borderRadius: "12px",
     padding: "35px 40px",
     marginTop: "15px",
@@ -406,7 +514,8 @@ const styles = {
 
   infoGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns:
+      "repeat(auto-fit, minmax(280px, 1fr))",
     gap: "20px",
     backgroundColor: "#f9fafb",
     padding: "15px 18px",
@@ -422,9 +531,34 @@ const styles = {
     fontSize: "14px",
   },
 
+  itemsBox: {
+    marginTop: "18px",
+    padding: "16px 18px",
+    border: "1px solid #e5e7eb",
+    borderRadius: "10px",
+  },
+
+  itemsTitle: {
+    margin: "0 0 10px",
+  },
+
+  itemRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "20px",
+    padding: "10px 0",
+    borderBottom: "1px solid #e5e7eb",
+  },
+
+  itemInfo: {
+    margin: "5px 0 0",
+    color: "#6b7280",
+  },
+
   statusRow: {
     display: "flex",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: "12px",
     marginTop: "18px",
   },
