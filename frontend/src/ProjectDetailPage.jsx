@@ -26,70 +26,99 @@ function ProjectDetailPage() {
   }
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchProductDetail = async () => {
-      setLoading(true);
-      setErrorMessage("");
-      setProduct(null);
-
-      try {
-        // Cách 1: gọi API chi tiết sản phẩm
-        const response = await api.get(`/products/${id}`);
-
-        if (response.data) {
-          setProduct(response.data);
-          return;
+      if (!id) {
+        if (isMounted) {
+          setProduct(null);
+          setErrorMessage("Mã sản phẩm không hợp lệ.");
+          setLoading(false);
         }
-      } catch (detailError) {
-        console.warn(
-          "Không lấy được sản phẩm từ API chi tiết, chuyển sang lấy danh sách:",
-          detailError.response?.data || detailError.message
-        );
+
+        return;
       }
 
       try {
-        // Cách 2: gọi danh sách sản phẩm rồi tìm theo ID
-        const listResponse = await api.get("/products");
-
-        const productList = Array.isArray(listResponse.data)
-          ? listResponse.data
-          : listResponse.data?.products || [];
-
-        const foundProduct = productList.find(
-          (item) => String(item.id) === String(id)
-        );
-
-        if (foundProduct) {
-          setProduct(foundProduct);
-        } else {
-          setErrorMessage("Không tìm thấy sản phẩm có mã này.");
+        if (isMounted) {
+          setLoading(true);
+          setErrorMessage("");
+          setProduct(null);
         }
-      } catch (listError) {
+
+        const response = await api.get(`/products/${id}`);
+
+        if (isMounted) {
+          if (response.data && response.data.id) {
+            setProduct(response.data);
+          } else {
+            setProduct(null);
+            setErrorMessage("Dữ liệu sản phẩm không hợp lệ.");
+          }
+        }
+      } catch (detailError) {
         console.error(
-          "Lỗi lấy danh sách sản phẩm:",
-          listError.response?.data || listError.message
+          "Lỗi lấy chi tiết sản phẩm:",
+          detailError.response?.data || detailError.message
         );
 
-        setErrorMessage(
-          "Không thể kết nối đến máy chủ để lấy thông tin sản phẩm."
-        );
+        try {
+          const listResponse = await api.get("/products");
+
+          const productList = Array.isArray(listResponse.data)
+            ? listResponse.data
+            : listResponse.data?.products || [];
+
+          const foundProduct = productList.find(
+            (item) => String(item.id) === String(id)
+          );
+
+          if (isMounted) {
+            if (foundProduct) {
+              setProduct(foundProduct);
+            } else {
+              setProduct(null);
+              setErrorMessage("Không tìm thấy sản phẩm có mã này.");
+            }
+          }
+        } catch (listError) {
+          console.error(
+            "Lỗi lấy danh sách sản phẩm:",
+            listError.response?.data || listError.message
+          );
+
+          if (isMounted) {
+            setProduct(null);
+            setErrorMessage(
+              "Không thể kết nối đến máy chủ để tải sản phẩm."
+            );
+          }
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchProductDetail();
+
+    return () => {
+      isMounted = false;
+    };
   }, [id]);
 
   const getImageUrl = (productData) => {
-    const image =
-      productData?.image_url ||
-      productData?.image;
+    const image = productData?.image_url || productData?.image;
 
     if (!image) {
       return FALLBACK_IMAGE;
     }
 
-    if (image.startsWith("http://") || image.startsWith("https://")) {
+    if (
+      image.startsWith("http://") ||
+      image.startsWith("https://")
+    ) {
       return image;
     }
 
@@ -319,6 +348,7 @@ const styles = {
     padding: "0 115px 40px",
     backgroundColor: "#ffffff",
     color: "#111827",
+    boxSizing: "border-box",
   },
 
   header: {
@@ -400,6 +430,7 @@ const styles = {
     height: "100%",
     objectFit: "contain",
     padding: "25px",
+    boxSizing: "border-box",
   },
 
   infoBox: {
@@ -448,6 +479,7 @@ const styles = {
   actions: {
     display: "flex",
     gap: "15px",
+    flexWrap: "wrap",
   },
 
   cartBtn: {
