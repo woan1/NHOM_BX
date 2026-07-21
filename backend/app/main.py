@@ -8,6 +8,7 @@ from fastapi import (
     FastAPI,
     File,
     HTTPException,
+    Request,
     UploadFile,
     status,
 )
@@ -858,13 +859,17 @@ def delete_product(
 # =========================
 @app.post("/upload-image")
 def upload_image(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(
         require_admin
     ),
 ):
-    if not file.content_type.startswith(
-        "image/"
+    if (
+        not file.content_type
+        or not file.content_type.startswith(
+            "image/"
+        )
     ):
         raise HTTPException(
             status_code=(
@@ -873,8 +878,10 @@ def upload_image(
             detail="File phải là hình ảnh",
         )
 
+    original_filename = file.filename or ""
+
     file_extension = (
-        Path(file.filename)
+        Path(original_filename)
         .suffix
         .lower()
     )
@@ -907,18 +914,39 @@ def upload_image(
         / new_filename
     )
 
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(
-            file.file,
-            buffer,
-        )
+    try:
+        with file_path.open("wb") as buffer:
+            shutil.copyfileobj(
+                file.file,
+                buffer,
+            )
+
+    except Exception as error:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_500_INTERNAL_SERVER_ERROR
+            ),
+            detail=(
+                "Không thể lưu hình ảnh: "
+                f"{str(error)}"
+            ),
+        ) from error
+
+    finally:
+        file.file.close()
+
+    base_url = (
+        str(request.base_url)
+        .rstrip("/")
+    )
 
     image_url = (
-        "http://127.0.0.1:8000"
+        f"{base_url}"
         f"/uploads/{new_filename}"
     )
 
     return {
+        "filename": new_filename,
         "image": image_url,
         "image_url": image_url,
     }
