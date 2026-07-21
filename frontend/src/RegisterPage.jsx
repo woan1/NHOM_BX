@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import api from "./api";
 
 function RegisterPage() {
   const navigate = useNavigate();
@@ -11,59 +12,84 @@ function RegisterPage() {
     confirmPassword: "",
   });
 
+  const [loading, setLoading] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
-    setFormData({
-      ...formData,
+    setFormData((prev) => ({
+      ...prev,
       [name]: value,
-    });
+    }));
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
 
-    if (
-      !formData.fullName ||
-      !formData.email ||
-      !formData.password ||
-      !formData.confirmPassword
-    ) {
+    const fullName = formData.fullName.trim();
+    const email = formData.email.trim().toLowerCase();
+    const password = formData.password;
+    const confirmPassword = formData.confirmPassword;
+
+    if (!fullName || !email || !password || !confirmPassword) {
       alert("Vui lòng nhập đầy đủ thông tin.");
       return;
     }
 
-    if (formData.password.length < 6) {
+    if (password.length < 6) {
       alert("Mật khẩu phải có ít nhất 6 ký tự.");
       return;
     }
 
-    if (formData.password !== formData.confirmPassword) {
+    if (password !== confirmPassword) {
       alert("Mật khẩu xác nhận không khớp.");
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem("users")) || [];
+    try {
+      setLoading(true);
 
-    const existingUser = users.find((user) => user.email === formData.email);
+      const response = await api.post("/register", {
+        name: fullName,
+        email,
+        password,
+      });
 
-    if (existingUser) {
-      alert("Email này đã được đăng ký.");
-      return;
+      console.log("Đăng ký thành công:", response.data);
+
+      alert("Đăng ký thành công! Vui lòng đăng nhập.");
+
+      navigate("/login", {
+        state: {
+          registeredEmail: email,
+        },
+      });
+    } catch (error) {
+      console.error(
+        "Lỗi đăng ký:",
+        error.response?.data || error.message
+      );
+
+      const detail = error.response?.data?.detail;
+
+      if (typeof detail === "string") {
+        alert(detail);
+      } else if (Array.isArray(detail)) {
+        const message = detail
+          .map((item) => item.msg || "Dữ liệu không hợp lệ.")
+          .join("\n");
+
+        alert(message);
+      } else if (!error.response) {
+        alert(
+          "Không kết nối được backend. Hãy kiểm tra backend đang chạy ở cổng 8000."
+        );
+      } else {
+        alert("Đăng ký thất bại. Vui lòng thử lại.");
+      }
+    } finally {
+      setLoading(false);
     }
-
-    const newUser = {
-      id: Date.now(),
-      fullName: formData.fullName,
-      email: formData.email,
-      password: formData.password,
-      role: "customer",
-    };
-
-    localStorage.setItem("users", JSON.stringify([...users, newUser]));
-
-    alert("Đăng ký thành công! Vui lòng đăng nhập.");
-    navigate("/login");
   };
 
   return (
@@ -71,6 +97,7 @@ function RegisterPage() {
       <header style={styles.header}>
         <Link to="/" style={styles.logo}>
           <div style={styles.logoBox}>S</div>
+
           <h1 style={styles.logoText}>
             Shop<span style={{ color: "#1769ff" }}>Hub</span>
           </h1>
@@ -108,6 +135,7 @@ function RegisterPage() {
           </p>
 
           <label style={styles.label}>Họ và tên</label>
+
           <input
             style={styles.input}
             type="text"
@@ -115,9 +143,11 @@ function RegisterPage() {
             placeholder="Nhập họ và tên"
             value={formData.fullName}
             onChange={handleChange}
+            disabled={loading}
           />
 
           <label style={styles.label}>Email</label>
+
           <input
             style={styles.input}
             type="email"
@@ -125,9 +155,11 @@ function RegisterPage() {
             placeholder="Nhập email"
             value={formData.email}
             onChange={handleChange}
+            disabled={loading}
           />
 
           <label style={styles.label}>Mật khẩu</label>
+
           <input
             style={styles.input}
             type="password"
@@ -135,9 +167,11 @@ function RegisterPage() {
             placeholder="Nhập mật khẩu"
             value={formData.password}
             onChange={handleChange}
+            disabled={loading}
           />
 
           <label style={styles.label}>Xác nhận mật khẩu</label>
+
           <input
             style={styles.input}
             type="password"
@@ -145,10 +179,19 @@ function RegisterPage() {
             placeholder="Nhập lại mật khẩu"
             value={formData.confirmPassword}
             onChange={handleChange}
+            disabled={loading}
           />
 
-          <button type="submit" style={styles.submitButton}>
-            Đăng ký
+          <button
+            type="submit"
+            style={{
+              ...styles.submitButton,
+              opacity: loading ? 0.7 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
+            disabled={loading}
+          >
+            {loading ? "Đang đăng ký..." : "Đăng ký"}
           </button>
 
           <p style={styles.bottomText}>
@@ -167,6 +210,7 @@ const styles = {
     padding: "0 115px 40px",
     backgroundColor: "#ffffff",
     color: "#111827",
+    boxSizing: "border-box",
   },
 
   header: {
@@ -236,6 +280,7 @@ const styles = {
     borderRadius: "14px",
     padding: "32px",
     boxShadow: "0 8px 22px rgba(0,0,0,0.05)",
+    boxSizing: "border-box",
   },
 
   title: {
@@ -264,6 +309,7 @@ const styles = {
     borderRadius: "8px",
     padding: "0 14px",
     fontSize: "15px",
+    boxSizing: "border-box",
   },
 
   submitButton: {
@@ -275,7 +321,6 @@ const styles = {
     border: "none",
     borderRadius: "8px",
     fontWeight: "800",
-    cursor: "pointer",
   },
 
   bottomText: {
