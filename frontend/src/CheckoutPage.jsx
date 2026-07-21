@@ -1,18 +1,8 @@
-import {
-  Link,
-  useNavigate,
-} from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-
-import axios from "axios";
+import api from "./api";
 import { useCart } from "./CartContext";
-
-const API_URL = "http://127.0.0.1:8000";
 
 const FALLBACK_IMAGE =
   "https://dummyimage.com/300x200/eef6ff/1769ff&text=ShopHub";
@@ -31,10 +21,13 @@ function CheckoutPage() {
   let currentUser = null;
 
   try {
-    currentUser = JSON.parse(
-      localStorage.getItem("currentUser")
-    );
-  } catch {
+    const savedUser = localStorage.getItem("currentUser");
+    currentUser = savedUser
+      ? JSON.parse(savedUser)
+      : null;
+  } catch (error) {
+    console.error("Lỗi đọc currentUser:", error);
+    localStorage.removeItem("currentUser");
     currentUser = null;
   }
 
@@ -53,15 +46,10 @@ function CheckoutPage() {
   });
 
   /*
-   * Khi khách bấm Cancel trên PayPal,
-   * PayPal đưa về:
+   * Khi khách hủy thanh toán PayPal,
+   * PayPal đưa người dùng trở lại:
    *
    * /checkout?paypal=cancel&shop_order_id=...
-   *
-   * Frontend gọi backend để:
-   * - đánh dấu đơn FAILED
-   * - hủy đơn
-   * - hoàn lại số lượng tồn kho
    */
   useEffect(() => {
     const handlePayPalCancel = async () => {
@@ -90,8 +78,8 @@ function CheckoutPage() {
           shopOrderId &&
           !Number.isNaN(Number(shopOrderId))
         ) {
-          await axios.post(
-            `${API_URL}/payments/paypal/cancel`,
+          await api.post(
+            "/payments/paypal/cancel",
             {
               order_id: Number(shopOrderId),
             }
@@ -105,7 +93,7 @@ function CheckoutPage() {
       } catch (error) {
         console.error(
           "Lỗi xử lý hủy PayPal:",
-          error
+          error.response?.data || error.message
         );
 
         alert(
@@ -124,30 +112,33 @@ function CheckoutPage() {
 
   const formatPrice = (price) => {
     return (
-      Number(price).toLocaleString("vi-VN") +
+      Number(price || 0).toLocaleString("vi-VN") +
       " đ"
     );
   };
 
   const getCartImage = (item) => {
     const image =
-      item.image_url ||
-      item.image;
+      item?.image_url ||
+      item?.image;
 
     if (!image) {
       return FALLBACK_IMAGE;
     }
 
-    if (image.startsWith("http")) {
+    if (
+      image.startsWith("http://") ||
+      image.startsWith("https://")
+    ) {
       return image;
     }
 
     if (image.startsWith("/uploads")) {
-      return `${API_URL}${image}`;
+      return `${api.defaults.baseURL}${image}`;
     }
 
     if (image.startsWith("uploads")) {
-      return `${API_URL}/${image}`;
+      return `${api.defaults.baseURL}/${image}`;
     }
 
     if (image.startsWith("/images")) {
@@ -159,33 +150,26 @@ function CheckoutPage() {
 
   const getCategoryName = (item) => {
     if (
-      typeof item.category === "object" &&
-      item.category !== null
+      typeof item?.category === "object" &&
+      item?.category !== null
     ) {
-      return (
-        item.category.name ||
-        "Khác"
-      );
+      return item.category.name || "Khác";
     }
 
     return (
-      item.category ||
-      item.category_name ||
+      item?.category ||
+      item?.category_name ||
       "Khác"
     );
   };
 
   const handleImageError = (event) => {
     event.currentTarget.onerror = null;
-    event.currentTarget.src =
-      FALLBACK_IMAGE;
+    event.currentTarget.src = FALLBACK_IMAGE;
   };
 
   const handleChange = (event) => {
-    const {
-      name,
-      value,
-    } = event.target;
+    const { name, value } = event.target;
 
     setFormData((previousData) => ({
       ...previousData,
@@ -194,15 +178,11 @@ function CheckoutPage() {
   };
 
   const getBackendPaymentMethod = () => {
-    if (
-      formData.paymentMethod === "VNPAY"
-    ) {
+    if (formData.paymentMethod === "VNPAY") {
       return "VNPAY";
     }
 
-    if (
-      formData.paymentMethod === "PAYPAL"
-    ) {
+    if (formData.paymentMethod === "PAYPAL") {
       return "PAYPAL";
     }
 
@@ -211,54 +191,56 @@ function CheckoutPage() {
 
   const getButtonText = () => {
     if (isSubmitting) {
-      if (
-        formData.paymentMethod === "VNPAY"
-      ) {
+      if (formData.paymentMethod === "VNPAY") {
         return "Đang chuyển đến VNPAY...";
       }
 
-      if (
-        formData.paymentMethod === "PAYPAL"
-      ) {
+      if (formData.paymentMethod === "PAYPAL") {
         return "Đang chuyển đến PayPal...";
       }
 
       return "Đang tạo đơn hàng...";
     }
 
-    if (
-      formData.paymentMethod === "VNPAY"
-    ) {
+    if (formData.paymentMethod === "VNPAY") {
       return "Thanh toán qua VNPAY";
     }
 
-    if (
-      formData.paymentMethod === "PAYPAL"
-    ) {
+    if (formData.paymentMethod === "PAYPAL") {
       return "Thanh toán qua PayPal Sandbox";
     }
 
     return "Xác nhận đặt hàng";
   };
 
-  const handleOrder = async (event) => {
-    event.preventDefault();
+  const validateForm = () => {
+    if (!formData.fullName.trim()) {
+      alert("Vui lòng nhập họ và tên.");
+      return false;
+    }
 
-    if (
-      !formData.fullName.trim() ||
-      !formData.phone.trim() ||
-      !formData.address.trim()
-    ) {
-      alert(
-        "Vui lòng nhập đầy đủ họ tên, " +
-          "số điện thoại và địa chỉ."
-      );
+    if (!formData.phone.trim()) {
+      alert("Vui lòng nhập số điện thoại.");
+      return false;
+    }
 
-      return;
+    if (!formData.address.trim()) {
+      alert("Vui lòng nhập địa chỉ giao hàng.");
+      return false;
     }
 
     if (cartItems.length === 0) {
       alert("Giỏ hàng đang trống.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleOrder = async (event) => {
+    event.preventDefault();
+
+    if (!validateForm()) {
       return;
     }
 
@@ -299,13 +281,15 @@ function CheckoutPage() {
         items: cartItems.map((item) => ({
           product_id:
             item.id ||
+            item.product_id ||
             null,
 
           quantity:
-            Number(item.quantity),
+            Number(item.quantity || 1),
 
           product_name:
-            item.name,
+            item.name ||
+            "",
 
           product_image:
             item.image_url ||
@@ -316,22 +300,19 @@ function CheckoutPage() {
             getCategoryName(item),
 
           price:
-            Number(item.price),
+            Number(item.price || 0),
         })),
       };
 
       /*
-       * Bước 1:
-       * Tạo đơn hàng trong PostgreSQL.
+       * Bước 1: Tạo đơn hàng.
        */
-      const orderResponse =
-        await axios.post(
-          `${API_URL}/orders`,
-          orderData
-        );
+      const orderResponse = await api.post(
+        "/orders",
+        orderData
+      );
 
-      const newOrder =
-        orderResponse.data;
+      const newOrder = orderResponse.data;
 
       if (!newOrder?.id) {
         throw new Error(
@@ -340,77 +321,62 @@ function CheckoutPage() {
       }
 
       /*
-       * Bước 2A:
-       * Thanh toán bằng VNPAY.
+       * Bước 2A: Thanh toán VNPAY.
        */
-      if (
-        formData.paymentMethod === "VNPAY"
-      ) {
-        const paymentResponse =
-          await axios.post(
-            `${API_URL}/payments/vnpay/create`,
-            {
-              order_id: newOrder.id,
-              locale: "vn",
-            }
-          );
+      if (formData.paymentMethod === "VNPAY") {
+        const paymentResponse = await api.post(
+          "/payments/vnpay/create",
+          {
+            order_id: newOrder.id,
+            locale: "vn",
+          }
+        );
 
         const paymentUrl =
           paymentResponse.data?.payment_url;
 
         if (!paymentUrl) {
           throw new Error(
-            "Backend không trả về đường dẫn " +
-              "thanh toán VNPAY."
+            "Backend không trả về đường dẫn thanh toán VNPAY."
           );
         }
 
         clearCart();
 
-        window.location.href =
-          paymentUrl;
-
+        window.location.href = paymentUrl;
         return;
       }
 
       /*
-       * Bước 2B:
-       * Thanh toán bằng PayPal Sandbox.
-       *
-       * Không xóa giỏ hàng tại đây.
-       * Chỉ xóa khi capture thành công tại
-       * PayPalReturnPage.jsx.
+       * Bước 2B: Thanh toán PayPal Sandbox.
        */
-      if (
-        formData.paymentMethod === "PAYPAL"
-      ) {
-        const paypalResponse =
-          await axios.post(
-            `${API_URL}/payments/paypal/create`,
-            {
-              order_id: newOrder.id,
-            }
-          );
+      if (formData.paymentMethod === "PAYPAL") {
+        const paypalResponse = await api.post(
+          "/payments/paypal/create",
+          {
+            order_id: newOrder.id,
+          }
+        );
 
         const paypalPaymentUrl =
           paypalResponse.data?.payment_url;
 
         if (!paypalPaymentUrl) {
           throw new Error(
-            "Backend không trả về đường dẫn " +
-              "thanh toán PayPal."
+            "Backend không trả về đường dẫn thanh toán PayPal."
           );
         }
 
-        window.location.href =
-          paypalPaymentUrl;
-
+        /*
+         * Không xóa giỏ hàng ở đây.
+         * Chỉ xóa sau khi PayPal thanh toán thành công.
+         */
+        window.location.href = paypalPaymentUrl;
         return;
       }
 
       /*
-       * Bước 2C:
-       * Thanh toán khi nhận hàng.
+       * Bước 2C: Thanh toán khi nhận hàng.
        */
       clearCart();
 
@@ -423,25 +389,34 @@ function CheckoutPage() {
     } catch (error) {
       console.error(
         "Lỗi đặt hàng hoặc thanh toán:",
-        error
+        error.response?.data || error.message
       );
 
       const detail =
         error.response?.data?.detail;
 
       if (typeof detail === "string") {
+        alert(`Thao tác thất bại: ${detail}`);
+      } else if (Array.isArray(detail)) {
+        const validationMessages = detail
+          .map((item) => item?.msg)
+          .filter(Boolean)
+          .join("\n");
+
         alert(
-          `Thao tác thất bại: ${detail}`
+          validationMessages ||
+            "Dữ liệu gửi lên không hợp lệ."
         );
-      } else if (
-        Array.isArray(detail)
-      ) {
+      } else if (error.code === "ECONNABORTED") {
         alert(
-          "Dữ liệu gửi lên không hợp lệ."
+          "Máy chủ phản hồi quá lâu. Vui lòng thử lại."
         );
-      } else if (
-        error.message
-      ) {
+      } else if (error.message === "Network Error") {
+        alert(
+          "Không thể kết nối đến backend Railway. " +
+            "Vui lòng kiểm tra backend đang hoạt động."
+        );
+      } else if (error.message) {
         alert(
           `Thao tác thất bại: ${error.message}`
         );
@@ -472,6 +447,7 @@ function CheckoutPage() {
 
           <Link to="/products">
             <button
+              type="button"
               style={styles.primaryButton}
             >
               Tiếp tục mua sắm
@@ -585,8 +561,7 @@ function CheckoutPage() {
             </option>
           </select>
 
-          {formData.paymentMethod ===
-            "PAYPAL" && (
+          {formData.paymentMethod === "PAYPAL" && (
             <div style={styles.paypalNotice}>
               <strong>
                 PayPal Sandbox
@@ -606,8 +581,7 @@ function CheckoutPage() {
             </div>
           )}
 
-          {formData.paymentMethod ===
-            "VNPAY" && (
+          {formData.paymentMethod === "VNPAY" && (
             <div style={styles.vnpayNotice}>
               <strong>
                 VNPAY Sandbox
@@ -624,19 +598,12 @@ function CheckoutPage() {
             type="submit"
             style={{
               ...styles.orderButton,
-              opacity:
-                isSubmitting ?
-                  0.7 :
-                  1,
-
-              cursor:
-                isSubmitting ?
-                  "not-allowed" :
-                  "pointer",
-
+              opacity: isSubmitting ? 0.7 : 1,
+              cursor: isSubmitting
+                ? "not-allowed"
+                : "pointer",
               backgroundColor:
-                formData.paymentMethod ===
-                "PAYPAL"
+                formData.paymentMethod === "PAYPAL"
                   ? "#0070ba"
                   : "#1769ff",
             }}
@@ -653,13 +620,13 @@ function CheckoutPage() {
 
           {cartItems.map((item) => (
             <div
-              key={item.id}
+              key={item.id || item.product_id}
               style={styles.orderItem}
             >
               <div style={styles.icon}>
                 <img
                   src={getCartImage(item)}
-                  alt={item.name}
+                  alt={item.name || "Sản phẩm"}
                   style={styles.productImg}
                   onError={handleImageError}
                 />
@@ -679,8 +646,8 @@ function CheckoutPage() {
 
               <strong>
                 {formatPrice(
-                  Number(item.price) *
-                    Number(item.quantity)
+                  Number(item.price || 0) *
+                    Number(item.quantity || 1)
                 )}
               </strong>
             </div>
@@ -696,8 +663,7 @@ function CheckoutPage() {
             </h2>
           </div>
 
-          {formData.paymentMethod ===
-            "PAYPAL" && (
+          {formData.paymentMethod === "PAYPAL" && (
             <div style={styles.exchangeBox}>
               <span>
                 Số tiền PayPal dự kiến:
@@ -706,7 +672,7 @@ function CheckoutPage() {
               <strong>
                 ~ $
                 {(
-                  Number(cartTotal) /
+                  Number(cartTotal || 0) /
                   25000
                 ).toFixed(2)} USD
               </strong>
@@ -784,6 +750,7 @@ const styles = {
     padding: "0 115px 40px",
     backgroundColor: "#ffffff",
     color: "#111827",
+    boxSizing: "border-box",
   },
 
   header: {
@@ -840,8 +807,7 @@ const styles = {
     color: "#1769ff",
     textDecoration: "none",
     fontWeight: "700",
-    borderBottom:
-      "3px solid #1769ff",
+    borderBottom: "3px solid #1769ff",
     paddingBottom: "24px",
   },
 
@@ -866,14 +832,12 @@ const styles = {
 
   checkoutGrid: {
     display: "grid",
-    gridTemplateColumns:
-      "1fr 1fr",
+    gridTemplateColumns: "1fr 1fr",
     gap: "25px",
   },
 
   formBox: {
-    border:
-      "1px solid #e5e7eb",
+    border: "1px solid #e5e7eb",
     borderRadius: "12px",
     padding: "25px",
     boxShadow:
@@ -890,31 +854,30 @@ const styles = {
   input: {
     width: "100%",
     height: "46px",
-    border:
-      "1px solid #e5e7eb",
+    border: "1px solid #e5e7eb",
     borderRadius: "8px",
     padding: "0 14px",
     fontSize: "15px",
     backgroundColor: "#ffffff",
+    boxSizing: "border-box",
   },
 
   textarea: {
     width: "100%",
     height: "90px",
-    border:
-      "1px solid #e5e7eb",
+    border: "1px solid #e5e7eb",
     borderRadius: "8px",
     padding: "12px 14px",
     fontSize: "15px",
     resize: "none",
+    boxSizing: "border-box",
   },
 
   paypalNotice: {
     marginTop: "15px",
     padding: "14px",
     borderRadius: "9px",
-    border:
-      "1px solid #bfdbfe",
+    border: "1px solid #bfdbfe",
     backgroundColor: "#eff6ff",
     color: "#075985",
   },
@@ -923,15 +886,13 @@ const styles = {
     marginTop: "15px",
     padding: "14px",
     borderRadius: "9px",
-    border:
-      "1px solid #fecaca",
+    border: "1px solid #fecaca",
     backgroundColor: "#fff1f2",
     color: "#be123c",
   },
 
   noticeText: {
-    margin:
-      "7px 0 0",
+    margin: "7px 0 0",
     fontSize: "14px",
     lineHeight: "1.5",
   },
@@ -948,8 +909,7 @@ const styles = {
   },
 
   summaryBox: {
-    border:
-      "1px solid #e5e7eb",
+    border: "1px solid #e5e7eb",
     borderRadius: "12px",
     padding: "25px",
     boxShadow:
@@ -960,8 +920,7 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "15px",
-    borderBottom:
-      "1px solid #e5e7eb",
+    borderBottom: "1px solid #e5e7eb",
     padding: "15px 0",
   },
 
@@ -974,6 +933,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
+    flexShrink: 0,
   },
 
   productImg: {
@@ -981,6 +941,7 @@ const styles = {
     height: "100%",
     objectFit: "contain",
     padding: "6px",
+    boxSizing: "border-box",
   },
 
   productName: {
@@ -995,8 +956,7 @@ const styles = {
 
   totalBox: {
     display: "flex",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
     alignItems: "center",
     marginTop: "25px",
   },
@@ -1011,8 +971,7 @@ const styles = {
     borderRadius: "9px",
     backgroundColor: "#f8fafc",
     display: "flex",
-    justifyContent:
-      "space-between",
+    justifyContent: "space-between",
     gap: "15px",
     color: "#475569",
   },
@@ -1031,8 +990,7 @@ const styles = {
     marginTop: "80px",
     textAlign: "center",
     padding: "60px",
-    border:
-      "1px solid #e5e7eb",
+    border: "1px solid #e5e7eb",
     borderRadius: "12px",
   },
 };
