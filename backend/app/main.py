@@ -1581,9 +1581,56 @@ def update_order_status(
         ) from error
 
 
-
 # =========================
 # ANALYTICS / TRAFFIC API
+# =========================
+def get_valid_analytics_user(
+    user_id,
+    db: Session,
+):
+    """
+    Kiểm tra user_id được frontend gửi lên.
+
+    Khách chưa đăng nhập:
+        user_id = None
+
+    Khách đã đăng nhập:
+        trả về đối tượng User tương ứng.
+    """
+    if user_id in [None, "", 0, "0"]:
+        return None
+
+    try:
+        parsed_user_id = int(user_id)
+    except (TypeError, ValueError):
+        return None
+
+    return (
+        db.query(User)
+        .filter(User.id == parsed_user_id)
+        .first()
+    )
+
+
+def get_client_ip(request: Request):
+    """
+    Lấy IP thật khi chạy qua Railway, Vercel hoặc proxy.
+    """
+    forwarded_for = request.headers.get(
+        "x-forwarded-for"
+    )
+
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+
+    if request.client:
+        return request.client.host
+
+    return None
+
+
+# =========================
+# GHI NHẬN TRUY CẬP WEBSITE
 # =========================
 @app.post(
     "/analytics/visit",
@@ -1594,43 +1641,72 @@ def record_website_visit(
     payload: dict,
     db: Session = Depends(get_db),
 ):
-    session_id = str(payload.get("session_id") or "").strip()
-    page_path = str(payload.get("page_path") or "/").strip()
-    user_id = payload.get("user_id")
+    session_id = str(
+        payload.get("session_id") or ""
+    ).strip()
+
+    page_path = str(
+        payload.get("page_path") or "/"
+    ).strip()
 
     if not session_id:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
+            status_code=(
+                status.HTTP_400_BAD_REQUEST
+            ),
             detail="session_id is required",
         )
 
-    # Mỗi session chỉ được tính một WEBSITE_VISIT.
+    user = get_valid_analytics_user(
+        payload.get("user_id"),
+        db,
+    )
+
+    # Mỗi session chỉ tính một lượt vào website.
     existing_visit = (
         db.query(VisitLog)
         .filter(
-            VisitLog.event_type == "WEBSITE_VISIT",
-            VisitLog.session_id == session_id,
+            VisitLog.event_type
+            == "WEBSITE_VISIT",
+            VisitLog.session_id
+            == session_id,
         )
         .first()
     )
 
     if existing_visit:
+        # Người dùng đăng nhập sau khi đã vào website:
+        # cập nhật lại user_id cho lượt truy cập cũ.
+        if (
+            user is not None
+            and existing_visit.user_id is None
+        ):
+            existing_visit.user_id = user.id
+            db.commit()
+
         return {
-            "message": "Visit already recorded",
+            "message": (
+                "Visit already recorded"
+            ),
             "counted": False,
+            "id": existing_visit.id,
         }
 
     visit = VisitLog(
         event_type="WEBSITE_VISIT",
-        user_id=user_id,
-        session_id=session_id,
-        page_path=page_path,
-        ip_address=(
-            request.client.host
-            if request.client
+        user_id=(
+            user.id
+            if user
             else None
         ),
-        user_agent=request.headers.get("user-agent"),
+        order_id=None,
+        product_id=None,
+        session_id=session_id,
+        page_path=page_path,
+        ip_address=get_client_ip(request),
+        user_agent=request.headers.get(
+            "user-agent"
+        ),
     )
 
     db.add(visit)
@@ -1638,12 +1714,126 @@ def record_website_visit(
     db.refresh(visit)
 
     return {
-        "message": "Website visit recorded",
+        "message": (
+            "Website visit recorded"
+        ),
         "counted": True,
         "id": visit.id,
     }
 
 
+# =========================
+# GHI NHẬN XEM SẢN PHẨM
+# =========================
+@app.post(
+    "/analytics/product-view/{product_id}",
+    status_code=status.HTTP_201_CREATED,
+)
+def record_product_view(
+    product_id: int,
+    request: Request,
+    payload: dict,
+    db: Session = Depends(get_db),
+):
+    product = (
+        db.query(Product)
+        .filter(Product.id == product_id)
+        .first()
+    )
+
+    if not product:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_404_NOT_FOUND
+            ),
+            detail="Product not found",
+        )
+
+    user = get_valid_analytics_user(
+        payload.get("user_id"),
+        db,
+    )
+
+    session_id = str(
+        payload.get("session_id") or ""
+    ).strip() or None
+
+    page_path = str(
+        payload.get("page_path")
+        or f"/products/{product_id}"
+    ).strip()
+
+    # Tránh ghi lặp liên tục cùng một sản phẩm
+    # trong cùng một phiên trình duyệt.
+    existing_view = None
+
+    if session_id:
+        existing_view = (
+            db.query(VisitLog)
+            .filter(
+                VisitLog.event_type
+                == "PRODUCT_VIEW",
+                VisitLog.product_id
+                == product_id,
+                VisitLog.session_id
+                == session_id,
+            )
+            .first()
+        )
+
+    if existing_view:
+        if (
+            user is not None
+            and existing_view.user_id is None
+        ):
+            existing_view.user_id = user.id
+            db.commit()
+
+        return {
+            "message": (
+                "Product view already recorded"
+            ),
+            "counted": False,
+            "id": existing_view.id,
+            "product_id": product.id,
+            "product_name": product.name,
+        }
+
+    view = VisitLog(
+        event_type="PRODUCT_VIEW",
+        user_id=(
+            user.id
+            if user
+            else None
+        ),
+        product_id=product.id,
+        order_id=None,
+        session_id=session_id,
+        page_path=page_path,
+        ip_address=get_client_ip(request),
+        user_agent=request.headers.get(
+            "user-agent"
+        ),
+    )
+
+    db.add(view)
+    db.commit()
+    db.refresh(view)
+
+    return {
+        "message": (
+            "Product view recorded"
+        ),
+        "counted": True,
+        "id": view.id,
+        "product_id": product.id,
+        "product_name": product.name,
+    }
+
+
+# =========================
+# GHI NHẬN XEM ĐƠN HÀNG
+# =========================
 @app.post(
     "/analytics/order-view/{order_id}",
     status_code=status.HTTP_201_CREATED,
@@ -1662,29 +1852,75 @@ def record_order_view(
 
     if not order:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=(
+                status.HTTP_404_NOT_FOUND
+            ),
             detail="Order not found",
         )
 
-    session_id = str(payload.get("session_id") or "").strip() or None
-    user_id = payload.get("user_id")
+    user = get_valid_analytics_user(
+        payload.get("user_id"),
+        db,
+    )
+
+    session_id = str(
+        payload.get("session_id") or ""
+    ).strip() or None
+
     page_path = str(
         payload.get("page_path")
         or f"/orders/{order_id}"
     ).strip()
 
+    # Tránh ghi lặp cùng một đơn trong một phiên.
+    existing_view = None
+
+    if session_id:
+        existing_view = (
+            db.query(VisitLog)
+            .filter(
+                VisitLog.event_type
+                == "ORDER_VIEW",
+                VisitLog.order_id
+                == order_id,
+                VisitLog.session_id
+                == session_id,
+            )
+            .first()
+        )
+
+    if existing_view:
+        if (
+            user is not None
+            and existing_view.user_id is None
+        ):
+            existing_view.user_id = user.id
+            db.commit()
+
+        return {
+            "message": (
+                "Order view already recorded"
+            ),
+            "counted": False,
+            "id": existing_view.id,
+            "order_id": order.id,
+        }
+
     view = VisitLog(
         event_type="ORDER_VIEW",
-        user_id=user_id,
-        order_id=order_id,
-        session_id=session_id,
-        page_path=page_path,
-        ip_address=(
-            request.client.host
-            if request.client
+        user_id=(
+            user.id
+            if user
             else None
         ),
-        user_agent=request.headers.get("user-agent"),
+        order_id=order.id,
+        product_id=None,
+        session_id=session_id,
+        page_path=page_path,
+        ip_address=get_client_ip(request),
+        user_agent=request.headers.get(
+            "user-agent"
+        ),
     )
 
     db.add(view)
@@ -1692,12 +1928,18 @@ def record_order_view(
     db.refresh(view)
 
     return {
-        "message": "Order view recorded",
+        "message": (
+            "Order view recorded"
+        ),
         "counted": True,
         "id": view.id,
+        "order_id": order.id,
     }
 
 
+# =========================
+# THỐNG KÊ LƯỢT TRUY CẬP
+# =========================
 @app.get("/dashboard/traffic")
 def get_traffic_statistics(
     group_by: Literal[
@@ -1706,18 +1948,22 @@ def get_traffic_statistics(
         "year",
     ] = Query(default="day"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(
+        require_admin
+    ),
 ):
     if group_by == "day":
         period_expression = func.to_char(
             VisitLog.created_at,
             "YYYY-MM-DD",
         )
+
     elif group_by == "year":
         period_expression = func.to_char(
             VisitLog.created_at,
             "YYYY",
         )
+
     else:
         period_expression = func.to_char(
             VisitLog.created_at,
@@ -1726,33 +1972,192 @@ def get_traffic_statistics(
 
     rows = (
         db.query(
-            period_expression.label("period"),
+            period_expression.label(
+                "period"
+            ),
+
             func.sum(
                 case(
-                    (VisitLog.event_type == "WEBSITE_VISIT", 1),
+                    (
+                        VisitLog.event_type
+                        == "WEBSITE_VISIT",
+                        1,
+                    ),
                     else_=0,
                 )
             ).label("website_visits"),
+
             func.sum(
                 case(
-                    (VisitLog.event_type == "ORDER_VIEW", 1),
+                    (
+                        VisitLog.event_type
+                        == "PRODUCT_VIEW",
+                        1,
+                    ),
+                    else_=0,
+                )
+            ).label("product_views"),
+
+            func.sum(
+                case(
+                    (
+                        VisitLog.event_type
+                        == "ORDER_VIEW",
+                        1,
+                    ),
                     else_=0,
                 )
             ).label("order_views"),
         )
         .group_by(period_expression)
-        .order_by(period_expression.desc())
+        .order_by(
+            period_expression.desc()
+        )
         .all()
     )
 
     return [
         {
             "period": row.period,
-            "website_visits": int(row.website_visits or 0),
-            "order_views": int(row.order_views or 0),
+
+            "website_visits": int(
+                row.website_visits or 0
+            ),
+
+            "product_views": int(
+                row.product_views or 0
+            ),
+
+            "order_views": int(
+                row.order_views or 0
+            ),
         }
         for row in rows
     ]
+
+
+# =========================
+# LỊCH SỬ HOẠT ĐỘNG GẦN ĐÂY
+# =========================
+@app.get("/dashboard/recent-activity")
+def get_recent_activity(
+    limit: int = Query(
+        default=50,
+        ge=1,
+        le=200,
+    ),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(
+        require_admin
+    ),
+):
+    logs = (
+        db.query(VisitLog)
+        .order_by(
+            VisitLog.created_at.desc()
+        )
+        .limit(limit)
+        .all()
+    )
+
+    results = []
+
+    for log in logs:
+        customer_name = "Khách chưa đăng nhập"
+        customer_email = None
+
+        if log.user:
+            customer_name = (
+                log.user.name
+                or "Khách hàng"
+            )
+            customer_email = log.user.email
+
+        activity_name = "Truy cập website"
+        activity_detail = (
+            log.page_path or "/"
+        )
+
+        product_data = None
+        order_data = None
+
+        if log.event_type == "PRODUCT_VIEW":
+            activity_name = "Xem sản phẩm"
+
+            if log.product:
+                activity_detail = (
+                    log.product.name
+                )
+
+                product_data = {
+                    "id": log.product.id,
+                    "name": log.product.name,
+                    "image": log.product.image,
+                    "price": log.product.price,
+                }
+            else:
+                activity_detail = (
+                    "Sản phẩm đã bị xóa"
+                )
+
+        elif log.event_type == "ORDER_VIEW":
+            activity_name = "Xem đơn hàng"
+            activity_detail = (
+                f"Đơn hàng #{log.order_id}"
+            )
+
+            if log.order:
+                order_data = {
+                    "id": log.order.id,
+                    "shipping_name": (
+                        log.order.shipping_name
+                    ),
+                    "total_price": int(
+                        log.order.total_price or 0
+                    ),
+                    "status": log.order.status,
+                    "payment_status": (
+                        log.order.payment_status
+                    ),
+                }
+
+        results.append({
+            "id": log.id,
+            "event_type": log.event_type,
+            "activity_name": activity_name,
+            "activity_detail": (
+                activity_detail
+            ),
+
+            "user_id": log.user_id,
+            "customer_name": customer_name,
+            "customer_email": (
+                customer_email
+            ),
+
+            "product_id": log.product_id,
+            "product": product_data,
+
+            "order_id": log.order_id,
+            "order": order_data,
+
+            "session_id": log.session_id,
+            "page_path": log.page_path,
+            "ip_address": log.ip_address,
+            "user_agent": log.user_agent,
+
+            "created_at": log.created_at,
+
+            "date": (
+                log.created_at.strftime(
+                    "%d/%m/%Y %H:%M:%S"
+                )
+                if log.created_at
+                else None
+            ),
+        })
+
+    return results
 
 # =========================
 # DASHBOARD API
@@ -1770,6 +2175,11 @@ def get_dashboard_stats(
     total_website_visits = (
         db.query(VisitLog)
         .filter(VisitLog.event_type == "WEBSITE_VISIT")
+        .count()
+    )
+    total_product_views = (
+        db.query(VisitLog)
+        .filter(VisitLog.event_type == "PRODUCT_VIEW")
         .count()
     )
     total_order_views = (
@@ -1833,6 +2243,7 @@ def get_dashboard_stats(
         "total_users": total_users,
         "total_website_visits": total_website_visits,
         "visits_today": visits_today,
+        "total_product_views": total_product_views,
         "total_order_views": total_order_views,
         "total_revenue": int(
             product_revenue or 0

@@ -92,6 +92,11 @@ class Product(Base):
         back_populates="product",
     )
 
+    visit_logs = relationship(
+        "VisitLog",
+        back_populates="product",
+    )
+
 
 # =========================
 # USER MODEL
@@ -161,7 +166,7 @@ class Order(Base):
         nullable=True,
     )
 
-    # Tổng tiền sản phẩm, chưa bao gồm phí giao hàng
+    # Tổng tiền sản phẩm
     product_total = Column(
         Integer,
         default=0,
@@ -175,7 +180,7 @@ class Order(Base):
         nullable=False,
     )
 
-    # Tổng tiền khách phải thanh toán
+    # Tổng tiền khách thanh toán
     total_price = Column(
         Integer,
         default=0,
@@ -217,7 +222,7 @@ class Order(Base):
         nullable=True,
     )
 
-    # Thanh toán khi nhận hàng, VNPAY hoặc PayPal
+    # COD, VNPAY hoặc PayPal
     payment_method = Column(
         String,
         default="Thanh toán khi nhận hàng",
@@ -230,26 +235,22 @@ class Order(Base):
         nullable=False,
     )
 
-    # Mã giao dịch ShopHub gửi sang VNPAY
     vnp_txn_ref = Column(
         String(100),
         unique=True,
         nullable=True,
     )
 
-    # Mã giao dịch do VNPAY trả về
     vnp_transaction_no = Column(
         String(100),
         nullable=True,
     )
 
-    # Mã kết quả do VNPAY trả về
     vnp_response_code = Column(
         String(10),
         nullable=True,
     )
 
-    # Thời gian thanh toán thành công
     paid_at = Column(
         DateTime,
         nullable=True,
@@ -356,14 +357,14 @@ class VisitLog(Base):
         index=True,
     )
 
-    # WEBSITE_VISIT hoặc ORDER_VIEW
+    # WEBSITE_VISIT, PRODUCT_VIEW hoặc ORDER_VIEW
     event_type = Column(
         String(30),
         nullable=False,
         index=True,
     )
 
-    # Người dùng có thể chưa đăng nhập
+    # Người truy cập, có thể chưa đăng nhập
     user_id = Column(
         Integer,
         ForeignKey("users.id"),
@@ -371,10 +372,18 @@ class VisitLog(Base):
         index=True,
     )
 
-    # Chỉ có giá trị khi event_type là ORDER_VIEW
+    # Đơn hàng đã xem
     order_id = Column(
         Integer,
         ForeignKey("orders.id"),
+        nullable=True,
+        index=True,
+    )
+
+    # Sản phẩm đã xem
+    product_id = Column(
+        Integer,
+        ForeignKey("products.id"),
         nullable=True,
         index=True,
     )
@@ -386,7 +395,7 @@ class VisitLog(Base):
         index=True,
     )
 
-    # Trang mà khách đang truy cập
+    # Đường dẫn trang đã xem
     page_path = Column(
         String(255),
         nullable=True,
@@ -416,5 +425,10 @@ class VisitLog(Base):
 
     order = relationship(
         "Order",
+        back_populates="visit_logs",
+    )
+
+    product = relationship(
+        "Product",
         back_populates="visit_logs",
     )

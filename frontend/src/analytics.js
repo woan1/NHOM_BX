@@ -1,7 +1,10 @@
 import api from "./api";
 
-const SESSION_ID_KEY = "shophub_analytics_session_id";
-const VISIT_RECORDED_KEY = "shophub_visit_recorded";
+const SESSION_ID_KEY =
+  "shophub_analytics_session_id";
+
+const VISIT_RECORDED_KEY =
+  "shophub_visit_recorded";
 
 function createSessionId() {
   if (window.crypto?.randomUUID) {
@@ -55,18 +58,28 @@ function getCurrentUserId() {
 
 export async function recordWebsiteVisit() {
   const alreadyRecorded =
-    sessionStorage.getItem(VISIT_RECORDED_KEY);
+    sessionStorage.getItem(
+      VISIT_RECORDED_KEY
+    );
 
   if (alreadyRecorded) {
     return;
   }
 
   try {
-    await api.post("/analytics/visit", {
-      session_id: getAnalyticsSessionId(),
-      user_id: getCurrentUserId(),
-      page_path: window.location.pathname,
-    });
+    await api.post(
+      "/analytics/visit",
+      {
+        session_id:
+          getAnalyticsSessionId(),
+
+        user_id:
+          getCurrentUserId(),
+
+        page_path:
+          window.location.pathname,
+      }
+    );
 
     sessionStorage.setItem(
       VISIT_RECORDED_KEY,
@@ -80,7 +93,38 @@ export async function recordWebsiteVisit() {
   }
 }
 
-export async function recordOrderView(orderId) {
+export async function recordProductView(
+  productId
+) {
+  if (!productId) {
+    return;
+  }
+
+  try {
+    await api.post(
+      `/analytics/product-view/${productId}`,
+      {
+        session_id:
+          getAnalyticsSessionId(),
+
+        user_id:
+          getCurrentUserId(),
+
+        page_path:
+          window.location.pathname,
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Không thể ghi nhận lượt xem sản phẩm:",
+      error
+    );
+  }
+}
+
+export async function recordOrderView(
+  orderId
+) {
   if (!orderId) {
     return;
   }
@@ -89,9 +133,14 @@ export async function recordOrderView(orderId) {
     await api.post(
       `/analytics/order-view/${orderId}`,
       {
-        session_id: getAnalyticsSessionId(),
-        user_id: getCurrentUserId(),
-        page_path: window.location.pathname,
+        session_id:
+          getAnalyticsSessionId(),
+
+        user_id:
+          getCurrentUserId(),
+
+        page_path:
+          window.location.pathname,
       }
     );
   } catch (error) {
