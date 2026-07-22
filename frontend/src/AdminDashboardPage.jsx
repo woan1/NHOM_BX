@@ -1,11 +1,18 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "./api";
 
 function AdminDashboardPage() {
   const navigate = useNavigate();
 
-  const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("currentUser"));
+    } catch (error) {
+      console.error("Không thể đọc currentUser:", error);
+      return null;
+    }
+  }, []);
 
   const [stats, setStats] = useState({
     total_products: 0,
@@ -16,14 +23,54 @@ function AdminDashboardPage() {
 
   const [revenueType, setRevenueType] = useState("month");
   const [revenueData, setRevenueData] = useState([]);
+
+  const [trafficType, setTrafficType] = useState("day");
+  const [trafficData, setTrafficData] = useState([]);
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const formatPrice = (price) => {
-    return Number(price || 0).toLocaleString("vi-VN") + " đ";
+    return `${Number(price || 0).toLocaleString("vi-VN")} đ`;
+  };
+
+  const formatNumber = (value) => {
+    return Number(value || 0).toLocaleString("vi-VN");
   };
 
   const isAdmin = ["ADMIN", "admin"].includes(currentUser?.role);
+
+  const getTodayPeriod = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const trafficSummary = useMemo(() => {
+    const totalWebsiteVisits = trafficData.reduce(
+      (total, item) => total + Number(item.website_visits || 0),
+      0
+    );
+
+    const totalOrderViews = trafficData.reduce(
+      (total, item) => total + Number(item.order_views || 0),
+      0
+    );
+
+    const todayItem =
+      trafficType === "day"
+        ? trafficData.find((item) => item.period === getTodayPeriod())
+        : null;
+
+    return {
+      totalWebsiteVisits,
+      totalOrderViews,
+      visitsToday: Number(todayItem?.website_visits || 0),
+    };
+  }, [trafficData, trafficType]);
 
   useEffect(() => {
     if (!currentUser || !isAdmin) {
@@ -33,24 +80,35 @@ function AdminDashboardPage() {
     }
 
     fetchDashboardData();
-  }, [revenueType]);
+  }, [revenueType, trafficType]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
 
-      // Tải thống kê và doanh thu trước
-      const [statsRes, revenueRes] = await Promise.all([
+      const [statsRes, revenueRes, trafficRes] = await Promise.all([
         api.get("/dashboard/stats"),
         api.get(`/dashboard/revenue?group_by=${revenueType}`),
+        api.get(`/dashboard/traffic?group_by=${trafficType}`),
       ]);
 
       setStats(statsRes.data || {});
-      setRevenueData(Array.isArray(revenueRes.data) ? revenueRes.data : []);
 
-      // Đơn hàng không được phép làm hỏng toàn bộ Dashboard
+      setRevenueData(
+        Array.isArray(revenueRes.data) ? revenueRes.data : []
+      );
+
+      setTrafficData(
+        Array.isArray(trafficRes.data)
+          ? trafficRes.data
+          : Array.isArray(trafficRes.data?.traffic)
+          ? trafficRes.data.traffic
+          : []
+      );
+
       try {
         const ordersRes = await api.get("/orders");
+
         const orderList = Array.isArray(ordersRes.data)
           ? ordersRes.data
           : Array.isArray(ordersRes.data?.orders)
@@ -63,25 +121,35 @@ function AdminDashboardPage() {
         setOrders([]);
       }
     } catch (error) {
-      console.error("Lỗi tải dashboard:", error);
+      console.error("Lỗi tải Dashboard:", error);
 
       if (error.response?.status === 401) {
-        alert("Bạn chưa đăng nhập hoặc token đã hết hạn. Vui lòng đăng nhập lại.");
+        alert(
+          "Bạn chưa đăng nhập hoặc token đã hết hạn. Vui lòng đăng nhập lại."
+        );
       } else if (error.response?.status === 403) {
         alert("Tài khoản của bạn không có quyền ADMIN.");
       } else {
-        alert("Không tải được Dashboard. Kiểm tra backend hoặc token admin.");
+        alert(
+          "Không tải được Dashboard. Hãy kiểm tra backend và token Admin."
+        );
       }
     } finally {
       setLoading(false);
     }
   };
 
+  const buttonStyle = (isActive) => ({
+    ...styles.filterBtn,
+    ...(isActive ? styles.activeFilterBtn : {}),
+  });
+
   return (
     <div style={styles.page}>
       <header style={styles.header}>
         <Link to="/" style={styles.logo}>
           <div style={styles.logoBox}>S</div>
+
           <h1 style={styles.logoText}>
             Shop<span style={{ color: "#1769ff" }}>Hub</span>
           </h1>
@@ -103,13 +171,18 @@ function AdminDashboardPage() {
           <Link style={styles.navLink} to="/admin/products">
             Quản lý sản phẩm
           </Link>
+
+          <Link style={styles.navLink} to="/admin/orders">
+            Quản lý đơn hàng
+          </Link>
         </nav>
       </header>
 
       <section style={styles.titleBox}>
         <h1 style={styles.title}>Admin Dashboard</h1>
+
         <p style={styles.subtitle}>
-          Tổng quan tình hình sản phẩm, đơn hàng, người dùng và doanh thu.
+          Tổng quan sản phẩm, đơn hàng, người dùng, doanh thu và lượt truy cập.
         </p>
       </section>
 
@@ -124,7 +197,9 @@ function AdminDashboardPage() {
               <span style={styles.icon}>📦</span>
               <div>
                 <p style={styles.statLabel}>Tổng sản phẩm</p>
-                <h2 style={styles.statValue}>{stats.total_products}</h2>
+                <h2 style={styles.statValue}>
+                  {formatNumber(stats.total_products)}
+                </h2>
               </div>
             </div>
 
@@ -132,7 +207,9 @@ function AdminDashboardPage() {
               <span style={styles.icon}>🧾</span>
               <div>
                 <p style={styles.statLabel}>Tổng đơn hàng</p>
-                <h2 style={styles.statValue}>{stats.total_orders}</h2>
+                <h2 style={styles.statValue}>
+                  {formatNumber(stats.total_orders)}
+                </h2>
               </div>
             </div>
 
@@ -140,7 +217,9 @@ function AdminDashboardPage() {
               <span style={styles.icon}>👤</span>
               <div>
                 <p style={styles.statLabel}>Tổng người dùng</p>
-                <h2 style={styles.statValue}>{stats.total_users}</h2>
+                <h2 style={styles.statValue}>
+                  {formatNumber(stats.total_users)}
+                </h2>
               </div>
             </div>
 
@@ -153,84 +232,234 @@ function AdminDashboardPage() {
                 </h2>
               </div>
             </div>
+
+            <div style={styles.statCard}>
+              <span style={styles.icon}>🌐</span>
+              <div>
+                <p style={styles.statLabel}>Tổng lượt truy cập</p>
+                <h2 style={styles.statValue}>
+                  {formatNumber(trafficSummary.totalWebsiteVisits)}
+                </h2>
+              </div>
+            </div>
+
+            <div style={styles.statCard}>
+              <span style={styles.icon}>📅</span>
+              <div>
+                <p style={styles.statLabel}>Truy cập hôm nay</p>
+                <h2 style={styles.statValue}>
+                  {trafficType === "day"
+                    ? formatNumber(trafficSummary.visitsToday)
+                    : "Chọn Ngày"}
+                </h2>
+              </div>
+            </div>
+
+            <div style={styles.statCard}>
+              <span style={styles.icon}>👁️</span>
+              <div>
+                <p style={styles.statLabel}>Lượt xem đơn hàng</p>
+                <h2 style={styles.statValue}>
+                  {formatNumber(trafficSummary.totalOrderViews)}
+                </h2>
+              </div>
+            </div>
           </section>
 
           <section style={styles.contentGrid}>
             <div style={styles.panel}>
               <div style={styles.panelHeader}>
-                <h2>Doanh thu</h2>
+                <h2 style={styles.panelTitle}>Doanh thu</h2>
 
-                <div style={{display:"flex",gap:"8px"}}>
-                  <button onClick={()=>setRevenueType("day")} style={styles.refreshBtn}>Ngày</button>
-                  <button onClick={()=>setRevenueType("month")} style={styles.refreshBtn}>Tháng</button>
-                  <button onClick={()=>setRevenueType("year")} style={styles.refreshBtn}>Năm</button>
+                <div style={styles.filterGroup}>
+                  <button
+                    type="button"
+                    onClick={() => setRevenueType("day")}
+                    style={buttonStyle(revenueType === "day")}
+                  >
+                    Ngày
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRevenueType("month")}
+                    style={buttonStyle(revenueType === "month")}
+                  >
+                    Tháng
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRevenueType("year")}
+                    style={buttonStyle(revenueType === "year")}
+                  >
+                    Năm
+                  </button>
                 </div>
               </div>
 
               {revenueData.length === 0 ? (
                 <p style={styles.muted}>Chưa có dữ liệu doanh thu.</p>
               ) : (
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>
-                        {revenueType === "day"
-                          ? "Ngày"
-                          : revenueType === "year"
-                          ? "Năm"
-                          : "Tháng"}
-                      </th>
-                      <th style={styles.th}>Doanh thu</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {revenueData.map((item) => (
-                      <tr key={item.period}>
-                        <td style={styles.td}>{item.period}</td>
-                        <td style={styles.td}>{formatPrice(item.revenue)}</td>
+                <div style={styles.tableWrapper}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>
+                          {revenueType === "day"
+                            ? "Ngày"
+                            : revenueType === "year"
+                            ? "Năm"
+                            : "Tháng"}
+                        </th>
+                        <th style={styles.th}>Doanh thu sản phẩm</th>
+                        <th style={styles.th}>Phí vận chuyển</th>
+                        <th style={styles.th}>Tổng thu</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+
+                    <tbody>
+                      {revenueData.map((item) => (
+                        <tr key={item.period}>
+                          <td style={styles.td}>{item.period}</td>
+
+                          <td style={styles.td}>
+                            {formatPrice(item.revenue)}
+                          </td>
+
+                          <td style={styles.td}>
+                            {formatPrice(item.shipping_fee)}
+                          </td>
+
+                          <td style={styles.td}>
+                            <strong>
+                              {formatPrice(
+                                item.total_collected ??
+                                  Number(item.revenue || 0) +
+                                    Number(item.shipping_fee || 0)
+                              )}
+                            </strong>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </div>
 
             <div style={styles.panel}>
               <div style={styles.panelHeader}>
-                <h2>Đơn hàng mới</h2>
+                <h2 style={styles.panelTitle}>Thống kê truy cập</h2>
 
-                <Link to="/admin/orders" style={styles.viewAll}>
-  Xem tất cả
-</Link>
+                <div style={styles.filterGroup}>
+                  <button
+                    type="button"
+                    onClick={() => setTrafficType("day")}
+                    style={buttonStyle(trafficType === "day")}
+                  >
+                    Ngày
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTrafficType("month")}
+                    style={buttonStyle(trafficType === "month")}
+                  >
+                    Tháng
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTrafficType("year")}
+                    style={buttonStyle(trafficType === "year")}
+                  >
+                    Năm
+                  </button>
+                </div>
               </div>
 
-              {orders.length === 0 ? (
-                <p style={styles.muted}>Chưa có đơn hàng nào.</p>
+              {trafficData.length === 0 ? (
+                <p style={styles.muted}>
+                  Chưa có dữ liệu lượt truy cập.
+                </p>
               ) : (
-                <div style={styles.orderList}>
-                  {orders.map((order) => (
-                    <div key={order.id} style={styles.orderItem}>
-                      <div>
-                        <h3 style={styles.orderTitle}>DH{order.id}</h3>
+                <div style={styles.tableWrapper}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>
+                          {trafficType === "day"
+                            ? "Ngày"
+                            : trafficType === "year"
+                            ? "Năm"
+                            : "Tháng"}
+                        </th>
 
-                        <p style={styles.orderText}>
-                          Khách hàng: {order.shipping_name || "Chưa có"}
-                        </p>
+                        <th style={styles.th}>Lượt truy cập</th>
+                        <th style={styles.th}>Lượt xem đơn hàng</th>
+                      </tr>
+                    </thead>
 
-                        <p style={styles.orderText}>
-                          Trạng thái: {order.status || "Đang xử lý"}
-                        </p>
-                      </div>
+                    <tbody>
+                      {trafficData.map((item) => (
+                        <tr key={item.period}>
+                          <td style={styles.td}>{item.period}</td>
 
-                      <strong style={styles.orderPrice}>
-                        {formatPrice(order.total_amount || order.total_price || order.total)}
-                      </strong>
-                    </div>
-                  ))}
+                          <td style={styles.td}>
+                            {formatNumber(item.website_visits)}
+                          </td>
+
+                          <td style={styles.td}>
+                            {formatNumber(item.order_views)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
+          </section>
+
+          <section style={{ ...styles.panel, marginTop: "22px" }}>
+            <div style={styles.panelHeader}>
+              <h2 style={styles.panelTitle}>Đơn hàng mới</h2>
+
+              <Link to="/admin/orders" style={styles.viewAll}>
+                Xem tất cả
+              </Link>
+            </div>
+
+            {orders.length === 0 ? (
+              <p style={styles.muted}>Chưa có đơn hàng nào.</p>
+            ) : (
+              <div style={styles.orderList}>
+                {orders.map((order) => (
+                  <div key={order.id} style={styles.orderItem}>
+                    <div>
+                      <h3 style={styles.orderTitle}>DH{order.id}</h3>
+
+                      <p style={styles.orderText}>
+                        Khách hàng: {order.shipping_name || "Chưa có"}
+                      </p>
+
+                      <p style={styles.orderText}>
+                        Trạng thái: {order.status || "Đang xử lý"}
+                      </p>
+                    </div>
+
+                    <strong style={styles.orderPrice}>
+                      {formatPrice(
+                        order.total_amount ||
+                          order.total_price ||
+                          order.total
+                      )}
+                    </strong>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         </>
       )}
@@ -242,16 +471,19 @@ const styles = {
   page: {
     width: "100%",
     minHeight: "100vh",
-    padding: "0 115px 40px",
+    padding: "0 70px 40px",
     backgroundColor: "#ffffff",
     color: "#111827",
+    boxSizing: "border-box",
   },
 
   header: {
-    height: "78px",
+    minHeight: "78px",
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: "20px",
+    flexWrap: "wrap",
   },
 
   logo: {
@@ -284,7 +516,8 @@ const styles = {
   nav: {
     display: "flex",
     alignItems: "center",
-    gap: "26px",
+    gap: "22px",
+    flexWrap: "wrap",
   },
 
   navLink: {
@@ -298,7 +531,7 @@ const styles = {
     textDecoration: "none",
     fontWeight: "700",
     borderBottom: "3px solid #1769ff",
-    paddingBottom: "24px",
+    paddingBottom: "8px",
   },
 
   titleBox: {
@@ -321,7 +554,7 @@ const styles = {
 
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "20px",
     marginBottom: "24px",
   },
@@ -334,11 +567,13 @@ const styles = {
     alignItems: "center",
     gap: "16px",
     boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
+    backgroundColor: "#ffffff",
   },
 
   icon: {
     width: "54px",
     height: "54px",
+    minWidth: "54px",
     borderRadius: "14px",
     backgroundColor: "#eef6ff",
     display: "flex",
@@ -356,11 +591,12 @@ const styles = {
   statValue: {
     margin: 0,
     fontSize: "26px",
+    overflowWrap: "anywhere",
   },
 
   contentGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))",
     gap: "22px",
   },
 
@@ -369,23 +605,42 @@ const styles = {
     borderRadius: "14px",
     padding: "24px",
     boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
+    backgroundColor: "#ffffff",
+    overflow: "hidden",
   },
 
   panelHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: "14px",
     marginBottom: "18px",
+    flexWrap: "wrap",
   },
 
-  refreshBtn: {
+  panelTitle: {
+    margin: 0,
+  },
+
+  filterGroup: {
+    display: "flex",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+
+  filterBtn: {
     padding: "9px 15px",
-    backgroundColor: "#111827",
-    color: "white",
+    backgroundColor: "#e5e7eb",
+    color: "#111827",
     border: "none",
     borderRadius: "7px",
     cursor: "pointer",
     fontWeight: "700",
+  },
+
+  activeFilterBtn: {
+    backgroundColor: "#1769ff",
+    color: "#ffffff",
   },
 
   viewAll: {
@@ -394,9 +649,15 @@ const styles = {
     textDecoration: "none",
   },
 
+  tableWrapper: {
+    width: "100%",
+    overflowX: "auto",
+  },
+
   table: {
     width: "100%",
     borderCollapse: "collapse",
+    minWidth: "520px",
   },
 
   th: {
@@ -404,11 +665,13 @@ const styles = {
     padding: "12px",
     backgroundColor: "#f3f8ff",
     borderBottom: "1px solid #e5e7eb",
+    whiteSpace: "nowrap",
   },
 
   td: {
     padding: "12px",
     borderBottom: "1px solid #e5e7eb",
+    whiteSpace: "nowrap",
   },
 
   orderList: {

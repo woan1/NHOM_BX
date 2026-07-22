@@ -22,13 +22,13 @@ from fastapi.security import (
 from fastapi.staticfiles import StaticFiles
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy import func
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from .auth_schemas import UserLogin, UserRegister
 from .db import Base, SessionLocal, engine, get_db
 from .order_schemas import OrderCreate
-from .orm_models import Category, Order, OrderItem, Product, User
+from .orm_models import Category, Order, OrderItem, Product, User, VisitLog
 from .paypal import router as paypal_router
 from .product_schemas import (
     CategoryCreate,
@@ -247,8 +247,13 @@ def format_order(order: Order):
             else None
         ),
 
-        "total_price": order.total_price,
-        "total": order.total_price,
+        # product_total: doanh thu sản phẩm
+        # shipping_fee: tiền vận chuyển
+        # total_price/total: tổng số tiền khách thanh toán
+        "product_total": int(getattr(order, "product_total", 0) or 0),
+        "shipping_fee": int(getattr(order, "shipping_fee", 0) or 0),
+        "total_price": int(order.total_price or 0),
+        "total": int(order.total_price or 0),
         "status": order.status,
 
         "shipping_name": order.shipping_name,
@@ -257,6 +262,21 @@ def format_order(order: Order):
         ),
         "shipping_address": (
             order.shipping_address
+        ),
+        "shipping_province": getattr(
+            order,
+            "shipping_province",
+            None,
+        ),
+        "shipping_district": getattr(
+            order,
+            "shipping_district",
+            None,
+        ),
+        "shipping_ward": getattr(
+            order,
+            "shipping_ward",
+            None,
         ),
 
         "payment_method": getattr(
@@ -316,6 +336,21 @@ def format_order(order: Order):
             "phone": order.shipping_phone,
             "address": (
                 order.shipping_address
+            ),
+            "province": getattr(
+                order,
+                "shipping_province",
+                None,
+            ),
+            "district": getattr(
+                order,
+                "shipping_district",
+                None,
+            ),
+            "ward": getattr(
+                order,
+                "shipping_ward",
+                None,
             ),
 
             "paymentMethod": getattr(
@@ -955,6 +990,140 @@ def upload_image(
 
 
 # =========================
+# SHIPPING FEE
+# =========================
+def normalize_location(value: str | None) -> str:
+    return (value or "").strip().lower()
+
+
+def calculate_shipping_fee(
+    province: str | None,
+    district: str | None,
+) -> int:
+    """
+    Tính phí giao hàng cho shipper nội bộ của shop.
+
+    - Nội thành TP.HCM: 50.000đ
+    - Ngoại thành TP.HCM: 70.000đ
+    - Tỉnh lân cận: 100.000đ
+    - Miền Nam: 120.000đ
+    - Miền Trung: 150.000đ
+    - Khu vực còn lại: 180.000đ
+    """
+    normalized_province = normalize_location(
+        province
+    )
+    normalized_district = normalize_location(
+        district
+    )
+
+    ho_chi_minh_names = {
+        "tp. hồ chí minh",
+        "tp hồ chí minh",
+        "thành phố hồ chí minh",
+        "hồ chí minh",
+        "tphcm",
+    }
+
+    inner_city_districts = {
+        "quận 1",
+        "quận 3",
+        "quận 4",
+        "quận 5",
+        "quận 6",
+        "quận 7",
+        "quận 8",
+        "quận 10",
+        "quận 11",
+        "quận 12",
+        "quận bình thạnh",
+        "quận gò vấp",
+        "quận phú nhuận",
+        "quận tân bình",
+        "quận tân phú",
+        "quận bình tân",
+        "thành phố thủ đức",
+        "tp thủ đức",
+    }
+
+    if normalized_province in ho_chi_minh_names:
+        if normalized_district in inner_city_districts:
+            return 50000
+        return 70000
+
+    nearby_provinces = {
+        "bình dương",
+        "đồng nai",
+        "long an",
+        "tây ninh",
+        "bà rịa - vũng tàu",
+        "bà rịa vũng tàu",
+    }
+
+    if normalized_province in nearby_provinces:
+        return 100000
+
+    southern_provinces = {
+        "tiền giang",
+        "bến tre",
+        "vĩnh long",
+        "cần thơ",
+        "đồng tháp",
+        "an giang",
+        "kiên giang",
+        "sóc trăng",
+        "bạc liêu",
+        "cà mau",
+        "trà vinh",
+        "hậu giang",
+        "bình phước",
+    }
+
+    if normalized_province in southern_provinces:
+        return 120000
+
+    central_provinces = {
+        "đà nẵng",
+        "huế",
+        "thừa thiên huế",
+        "quảng trị",
+        "quảng bình",
+        "quảng nam",
+        "quảng ngãi",
+        "bình định",
+        "phú yên",
+        "khánh hòa",
+        "ninh thuận",
+        "bình thuận",
+        "nghệ an",
+        "hà tĩnh",
+        "thanh hóa",
+    }
+
+    if normalized_province in central_provinces:
+        return 150000
+
+    return 180000
+
+
+@app.get("/shipping-fee")
+def preview_shipping_fee(
+    province: str = Query(...),
+    district: str = Query(...),
+):
+    shipping_fee = calculate_shipping_fee(
+        province,
+        district,
+    )
+
+    return {
+        "province": province,
+        "district": district,
+        "shipping_fee": shipping_fee,
+    }
+
+
+# =========================
 # ORDER API
 # =========================
 @app.post(
@@ -1016,6 +1185,8 @@ def create_order(
             else None
         ),
 
+        product_total=0,
+        shipping_fee=0,
         total_price=0,
         status="Đang xử lý",
 
@@ -1031,6 +1202,18 @@ def create_order(
             order_data.shipping_address
         ),
 
+        shipping_province=(
+            order_data.shipping_province
+        ),
+
+        shipping_district=(
+            order_data.shipping_district
+        ),
+
+        shipping_ward=(
+            order_data.shipping_ward
+        ),
+
         payment_method=(
             order_data.payment_method
         ),
@@ -1044,7 +1227,7 @@ def create_order(
         db.add(new_order)
         db.flush()
 
-        total_price = 0
+        product_total = 0
 
         for item in order_data.items:
             if item.quantity <= 0:
@@ -1122,7 +1305,7 @@ def create_order(
 
                 price = item.price or 0
 
-            total_price += (
+            product_total += (
                 price
                 * item.quantity
             )
@@ -1141,8 +1324,19 @@ def create_order(
 
             db.add(new_order_item)
 
+        shipping_fee = calculate_shipping_fee(
+            order_data.shipping_province,
+            order_data.shipping_district,
+        )
+
+        new_order.product_total = (
+            product_total
+        )
+        new_order.shipping_fee = (
+            shipping_fee
+        )
         new_order.total_price = (
-            total_price
+            product_total + shipping_fee
         )
 
         db.commit()
@@ -1387,6 +1581,179 @@ def update_order_status(
         ) from error
 
 
+
+# =========================
+# ANALYTICS / TRAFFIC API
+# =========================
+@app.post(
+    "/analytics/visit",
+    status_code=status.HTTP_201_CREATED,
+)
+def record_website_visit(
+    request: Request,
+    payload: dict,
+    db: Session = Depends(get_db),
+):
+    session_id = str(payload.get("session_id") or "").strip()
+    page_path = str(payload.get("page_path") or "/").strip()
+    user_id = payload.get("user_id")
+
+    if not session_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="session_id is required",
+        )
+
+    # Mỗi session chỉ được tính một WEBSITE_VISIT.
+    existing_visit = (
+        db.query(VisitLog)
+        .filter(
+            VisitLog.event_type == "WEBSITE_VISIT",
+            VisitLog.session_id == session_id,
+        )
+        .first()
+    )
+
+    if existing_visit:
+        return {
+            "message": "Visit already recorded",
+            "counted": False,
+        }
+
+    visit = VisitLog(
+        event_type="WEBSITE_VISIT",
+        user_id=user_id,
+        session_id=session_id,
+        page_path=page_path,
+        ip_address=(
+            request.client.host
+            if request.client
+            else None
+        ),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    db.add(visit)
+    db.commit()
+    db.refresh(visit)
+
+    return {
+        "message": "Website visit recorded",
+        "counted": True,
+        "id": visit.id,
+    }
+
+
+@app.post(
+    "/analytics/order-view/{order_id}",
+    status_code=status.HTTP_201_CREATED,
+)
+def record_order_view(
+    order_id: int,
+    request: Request,
+    payload: dict,
+    db: Session = Depends(get_db),
+):
+    order = (
+        db.query(Order)
+        .filter(Order.id == order_id)
+        .first()
+    )
+
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    session_id = str(payload.get("session_id") or "").strip() or None
+    user_id = payload.get("user_id")
+    page_path = str(
+        payload.get("page_path")
+        or f"/orders/{order_id}"
+    ).strip()
+
+    view = VisitLog(
+        event_type="ORDER_VIEW",
+        user_id=user_id,
+        order_id=order_id,
+        session_id=session_id,
+        page_path=page_path,
+        ip_address=(
+            request.client.host
+            if request.client
+            else None
+        ),
+        user_agent=request.headers.get("user-agent"),
+    )
+
+    db.add(view)
+    db.commit()
+    db.refresh(view)
+
+    return {
+        "message": "Order view recorded",
+        "counted": True,
+        "id": view.id,
+    }
+
+
+@app.get("/dashboard/traffic")
+def get_traffic_statistics(
+    group_by: Literal[
+        "day",
+        "month",
+        "year",
+    ] = Query(default="day"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    if group_by == "day":
+        period_expression = func.to_char(
+            VisitLog.created_at,
+            "YYYY-MM-DD",
+        )
+    elif group_by == "year":
+        period_expression = func.to_char(
+            VisitLog.created_at,
+            "YYYY",
+        )
+    else:
+        period_expression = func.to_char(
+            VisitLog.created_at,
+            "YYYY-MM",
+        )
+
+    rows = (
+        db.query(
+            period_expression.label("period"),
+            func.sum(
+                case(
+                    (VisitLog.event_type == "WEBSITE_VISIT", 1),
+                    else_=0,
+                )
+            ).label("website_visits"),
+            func.sum(
+                case(
+                    (VisitLog.event_type == "ORDER_VIEW", 1),
+                    else_=0,
+                )
+            ).label("order_views"),
+        )
+        .group_by(period_expression)
+        .order_by(period_expression.desc())
+        .all()
+    )
+
+    return [
+        {
+            "period": row.period,
+            "website_visits": int(row.website_visits or 0),
+            "order_views": int(row.order_views or 0),
+        }
+        for row in rows
+    ]
+
 # =========================
 # DASHBOARD API
 # =========================
@@ -1400,13 +1767,36 @@ def get_dashboard_stats(
     total_products = db.query(Product).count()
     total_orders = db.query(Order).count()
     total_users = db.query(User).count()
+    total_website_visits = (
+        db.query(VisitLog)
+        .filter(VisitLog.event_type == "WEBSITE_VISIT")
+        .count()
+    )
+    total_order_views = (
+        db.query(VisitLog)
+        .filter(VisitLog.event_type == "ORDER_VIEW")
+        .count()
+    )
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0,
+        minute=0,
+        second=0,
+        microsecond=0,
+    )
+    visits_today = (
+        db.query(VisitLog)
+        .filter(
+            VisitLog.event_type == "WEBSITE_VISIT",
+            VisitLog.created_at >= today_start,
+        )
+        .count()
+    )
 
-    # Chỉ tính doanh thu từ đơn đã thanh toán
-    # và không tính đơn đã hủy.
-    total_revenue = (
+    # Doanh thu chỉ tính tiền sản phẩm.
+    product_revenue = (
         db.query(
             func.coalesce(
-                func.sum(Order.total_price),
+                func.sum(Order.product_total),
                 0,
             )
         )
@@ -1417,13 +1807,43 @@ def get_dashboard_stats(
         .scalar()
     )
 
+    # Tiền vận chuyển được thống kê riêng.
+    shipping_revenue = (
+        db.query(
+            func.coalesce(
+                func.sum(Order.shipping_fee),
+                0,
+            )
+        )
+        .filter(
+            Order.payment_status == "PAID",
+            Order.status != "Đã hủy",
+        )
+        .scalar()
+    )
+
+    total_collected = (
+        int(product_revenue or 0)
+        + int(shipping_revenue or 0)
+    )
+
     return {
         "total_products": total_products,
         "total_orders": total_orders,
         "total_users": total_users,
+        "total_website_visits": total_website_visits,
+        "visits_today": visits_today,
+        "total_order_views": total_order_views,
         "total_revenue": int(
-            total_revenue or 0
+            product_revenue or 0
         ),
+        "product_revenue": int(
+            product_revenue or 0
+        ),
+        "shipping_revenue": int(
+            shipping_revenue or 0
+        ),
+        "total_collected": total_collected,
     }
 
 
@@ -1467,9 +1887,13 @@ def get_revenue(
                 "period"
             ),
             func.coalesce(
-                func.sum(Order.total_price),
+                func.sum(Order.product_total),
                 0,
             ).label("revenue"),
+            func.coalesce(
+                func.sum(Order.shipping_fee),
+                0,
+            ).label("shipping_fee"),
         )
         .filter(
             Order.payment_status == "PAID",
@@ -1485,6 +1909,13 @@ def get_revenue(
             "period": row.period,
             "revenue": int(
                 row.revenue or 0
+            ),
+            "shipping_fee": int(
+                row.shipping_fee or 0
+            ),
+            "total_collected": (
+                int(row.revenue or 0)
+                + int(row.shipping_fee or 0)
             ),
         }
         for row in results
@@ -1510,9 +1941,13 @@ def get_monthly_revenue(
                 "month"
             ),
             func.coalesce(
-                func.sum(Order.total_price),
+                func.sum(Order.product_total),
                 0,
             ).label("revenue"),
+            func.coalesce(
+                func.sum(Order.shipping_fee),
+                0,
+            ).label("shipping_fee"),
         )
         .filter(
             Order.payment_status == "PAID",
@@ -1528,6 +1963,13 @@ def get_monthly_revenue(
             "month": row.month,
             "revenue": int(
                 row.revenue or 0
+            ),
+            "shipping_fee": int(
+                row.shipping_fee or 0
+            ),
+            "total_collected": (
+                int(row.revenue or 0)
+                + int(row.shipping_fee or 0)
             ),
         }
         for row in results

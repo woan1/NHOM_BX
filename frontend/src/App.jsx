@@ -1,4 +1,9 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { useEffect } from "react";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+} from "react-router-dom";
 
 import HomePage from "./HomePage";
 import ProjectList from "./ProjectList";
@@ -14,21 +19,48 @@ import PaymentResultPage from "./PaymentResultPage";
 import AdminOrderPage from "./AdminOrderPage";
 import PayPalReturnPage from "./PayPalReturnPage";
 
+import {
+  recordWebsiteVisit,
+} from "./analytics";
+
+
 function App() {
+  useEffect(() => {
+    recordWebsiteVisit();
+  }, []);
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route
+          path="/"
+          element={<HomePage />}
+        />
 
-        <Route path="/products" element={<ProjectList />} />
+        <Route
+          path="/products"
+          element={<ProjectList />}
+        />
+
         <Route
           path="/products/:id"
           element={<ProjectDetailPage />}
         />
 
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/checkout" element={<CheckoutPage />} />
-        <Route path="/orders" element={<OrderHistoryPage />} />
+        <Route
+          path="/cart"
+          element={<CartPage />}
+        />
+
+        <Route
+          path="/checkout"
+          element={<CheckoutPage />}
+        />
+
+        <Route
+          path="/orders"
+          element={<OrderHistoryPage />}
+        />
 
         {/* Trang kết quả thanh toán VNPAY */}
         <Route
@@ -42,8 +74,15 @@ function App() {
           element={<PayPalReturnPage />}
         />
 
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route
+          path="/login"
+          element={<LoginPage />}
+        />
+
+        <Route
+          path="/register"
+          element={<RegisterPage />}
+        />
 
         <Route
           path="/admin/products"

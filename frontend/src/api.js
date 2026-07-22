@@ -26,14 +26,17 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      console.error("Chưa đăng nhập hoặc token hết hạn.");
+      console.error("Chưa đăng nhập hoặc token đã hết hạn.");
     }
 
     if (error.response?.status === 403) {
       console.error("Không có quyền truy cập chức năng này.");
     }
 
-    console.error("Lỗi API:", error.response?.data || error.message);
+    console.error(
+      "Lỗi API:",
+      error.response?.data || error.message
+    );
 
     return Promise.reject(error);
   }
