@@ -107,19 +107,25 @@ function AdminDashboardPage() {
     };
   }, [trafficData, trafficType]);
 
-  const orderViewStats = useMemo(() => {
+  const productViewStats = useMemo(() => {
     const grouped = new Map();
 
     recentActivities
       .filter(
         (activity) =>
-          activity.event_type === "ORDER_VIEW" &&
-          activity.order_id
+          activity.event_type === "PRODUCT_VIEW" &&
+          activity.product_id
       )
       .forEach((activity) => {
-        const orderId = Number(activity.order_id);
-        const current = grouped.get(orderId) || {
-          order_id: orderId,
+        const productId = Number(activity.product_id);
+        const productName =
+          activity.product?.name ||
+          activity.product_name ||
+          `Sản phẩm ${productId}`;
+
+        const current = grouped.get(productId) || {
+          product_id: productId,
+          product_name: productName,
           view_count: 0,
           latest_view_at: null,
           viewers: new Set(),
@@ -128,7 +134,7 @@ function AdminDashboardPage() {
         current.view_count += 1;
 
         if (activity.user_id) {
-          current.viewers.add(Number(activity.user_id));
+          current.viewers.add(`user:${activity.user_id}`);
         } else if (activity.session_id) {
           current.viewers.add(`session:${activity.session_id}`);
         }
@@ -145,7 +151,7 @@ function AdminDashboardPage() {
           current.latest_view_at = activityTime;
         }
 
-        grouped.set(orderId, current);
+        grouped.set(productId, current);
       });
 
     return Array.from(grouped.values())
@@ -530,25 +536,26 @@ function AdminDashboardPage() {
             <div style={styles.panelHeader}>
               <div>
                 <h2 style={styles.panelTitle}>
-                  Thống kê lượt xem từng đơn hàng
+                  Thống kê lượt xem từng sản phẩm
                 </h2>
 
                 <p style={styles.panelDescription}>
-                  Tổng hợp số lượt xem và số người xem của từng đơn hàng.
+                  Tổng hợp số lượt xem và số người xem của từng sản phẩm.
                 </p>
               </div>
             </div>
 
-            {orderViewStats.length === 0 ? (
+            {productViewStats.length === 0 ? (
               <p style={styles.muted}>
-                Chưa có lượt xem chi tiết đơn hàng nào.
+                Chưa có lượt xem sản phẩm nào.
               </p>
             ) : (
               <div style={styles.tableWrapper}>
                 <table style={styles.table}>
                   <thead>
                     <tr>
-                      <th style={styles.th}>Mã đơn hàng</th>
+                      <th style={styles.th}>Mã sản phẩm</th>
+                      <th style={styles.th}>Tên sản phẩm</th>
                       <th style={styles.th}>Số lượt xem</th>
                       <th style={styles.th}>Số người xem</th>
                       <th style={styles.th}>Lần xem gần nhất</th>
@@ -556,10 +563,14 @@ function AdminDashboardPage() {
                   </thead>
 
                   <tbody>
-                    {orderViewStats.map((item) => (
-                      <tr key={item.order_id}>
+                    {productViewStats.map((item) => (
+                      <tr key={item.product_id}>
                         <td style={styles.td}>
-                          <strong>DH{item.order_id}</strong>
+                          <strong>SP{item.product_id}</strong>
+                        </td>
+
+                        <td style={styles.td}>
+                          {item.product_name}
                         </td>
 
                         <td style={styles.td}>
