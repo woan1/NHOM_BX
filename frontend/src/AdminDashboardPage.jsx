@@ -19,6 +19,7 @@ function AdminDashboardPage() {
     total_orders: 0,
     total_users: 0,
     total_revenue: 0,
+    total_product_views: 0,
   });
 
   const [revenueType, setRevenueType] = useState("month");
@@ -28,6 +29,7 @@ function AdminDashboardPage() {
   const [trafficData, setTrafficData] = useState([]);
 
   const [orders, setOrders] = useState([]);
+  const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const formatPrice = (price) => {
@@ -36,6 +38,39 @@ function AdminDashboardPage() {
 
   const formatNumber = (value) => {
     return Number(value || 0).toLocaleString("vi-VN");
+  };
+
+  const formatDateTime = (value) => {
+    if (!value) return "Chưa có";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+      return value;
+    }
+
+    return date.toLocaleString("vi-VN");
+  };
+
+  const getActivityObject = (activity) => {
+    if (activity?.product) {
+      return {
+        label: `SP${activity.product.id}`,
+        name: activity.product.name || "Sản phẩm",
+      };
+    }
+
+    if (activity?.order_id) {
+      return {
+        label: `DH${activity.order_id}`,
+        name: "Đơn hàng",
+      };
+    }
+
+    return {
+      label: "—",
+      name: "Không có",
+    };
   };
 
   const isAdmin = ["ADMIN", "admin"].includes(currentUser?.role);
@@ -86,11 +121,13 @@ function AdminDashboardPage() {
     try {
       setLoading(true);
 
-      const [statsRes, revenueRes, trafficRes] = await Promise.all([
-        api.get("/dashboard/stats"),
-        api.get(`/dashboard/revenue?group_by=${revenueType}`),
-        api.get(`/dashboard/traffic?group_by=${trafficType}`),
-      ]);
+      const [statsRes, revenueRes, trafficRes, activityRes] =
+        await Promise.all([
+          api.get("/dashboard/stats"),
+          api.get(`/dashboard/revenue?group_by=${revenueType}`),
+          api.get(`/dashboard/traffic?group_by=${trafficType}`),
+          api.get("/dashboard/recent-activity?limit=50"),
+        ]);
 
       setStats(statsRes.data || {});
 
@@ -105,6 +142,14 @@ function AdminDashboardPage() {
           ? trafficRes.data.traffic
           : []
       );
+
+      const activityList = Array.isArray(activityRes.data)
+        ? activityRes.data
+        : Array.isArray(activityRes.data?.activities)
+        ? activityRes.data.activities
+        : [];
+
+      setRecentActivities(activityList);
 
       try {
         const ordersRes = await api.get("/orders");
@@ -264,6 +309,16 @@ function AdminDashboardPage() {
                 </h2>
               </div>
             </div>
+
+            <div style={styles.statCard}>
+              <span style={styles.icon}>🛍️</span>
+              <div>
+                <p style={styles.statLabel}>Lượt xem sản phẩm</p>
+                <h2 style={styles.statValue}>
+                  {formatNumber(stats.total_product_views)}
+                </h2>
+              </div>
+            </div>
           </section>
 
           <section style={styles.contentGrid}>
@@ -420,6 +475,93 @@ function AdminDashboardPage() {
                 </div>
               )}
             </div>
+          </section>
+
+          <section style={{ ...styles.panel, marginTop: "22px" }}>
+            <div style={styles.panelHeader}>
+              <div>
+                <h2 style={styles.panelTitle}>Hoạt động gần đây</h2>
+                <p style={styles.panelDescription}>
+                  Hiển thị ID, tên và email của người xem sản phẩm hoặc đơn hàng.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={fetchDashboardData}
+                style={styles.refreshBtn}
+              >
+                Làm mới
+              </button>
+            </div>
+
+            {recentActivities.length === 0 ? (
+              <p style={styles.muted}>Chưa có hoạt động nào.</p>
+            ) : (
+              <div style={styles.tableWrapper}>
+                <table style={{ ...styles.table, minWidth: "1100px" }}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Thời gian</th>
+                      <th style={styles.th}>Hoạt động</th>
+                      <th style={styles.th}>ID người xem</th>
+                      <th style={styles.th}>Tên người xem</th>
+                      <th style={styles.th}>Email</th>
+                      <th style={styles.th}>Đối tượng</th>
+                      <th style={styles.th}>Tên sản phẩm/đơn hàng</th>
+                      <th style={styles.th}>Đường dẫn</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {recentActivities.map((activity) => {
+                      const objectInfo = getActivityObject(activity);
+
+                      return (
+                        <tr key={activity.id}>
+                          <td style={styles.td}>
+                            {formatDateTime(
+                              activity.created_at || activity.date
+                            )}
+                          </td>
+
+                          <td style={styles.td}>
+                            <span style={styles.activityBadge}>
+                              {activity.activity_name ||
+                                activity.event_type ||
+                                "Hoạt động"}
+                            </span>
+                          </td>
+
+                          <td style={styles.td}>
+                            <strong>
+                              {activity.user_id ?? "Khách"}
+                            </strong>
+                          </td>
+
+                          <td style={styles.td}>
+                            {activity.customer_name ||
+                              "Khách chưa đăng nhập"}
+                          </td>
+
+                          <td style={styles.td}>
+                            {activity.customer_email || "Chưa có"}
+                          </td>
+
+                          <td style={styles.td}>{objectInfo.label}</td>
+
+                          <td style={styles.td}>{objectInfo.name}</td>
+
+                          <td style={styles.td}>
+                            {activity.page_path || "Chưa có"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           <section style={{ ...styles.panel, marginTop: "22px" }}>
@@ -622,6 +764,12 @@ const styles = {
     margin: 0,
   },
 
+  panelDescription: {
+    margin: "6px 0 0",
+    color: "#6b7280",
+    fontSize: "14px",
+  },
+
   filterGroup: {
     display: "flex",
     gap: "8px",
@@ -647,6 +795,26 @@ const styles = {
     color: "#1769ff",
     fontWeight: "700",
     textDecoration: "none",
+  },
+
+  refreshBtn: {
+    padding: "10px 16px",
+    backgroundColor: "#1769ff",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer",
+    fontWeight: "700",
+  },
+
+  activityBadge: {
+    display: "inline-block",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    backgroundColor: "#eef6ff",
+    color: "#1769ff",
+    fontWeight: "700",
+    fontSize: "13px",
   },
 
   tableWrapper: {
