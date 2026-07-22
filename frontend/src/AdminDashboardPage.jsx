@@ -107,6 +107,55 @@ function AdminDashboardPage() {
     };
   }, [trafficData, trafficType]);
 
+  const orderViewStats = useMemo(() => {
+    const grouped = new Map();
+
+    recentActivities
+      .filter(
+        (activity) =>
+          activity.event_type === "ORDER_VIEW" &&
+          activity.order_id
+      )
+      .forEach((activity) => {
+        const orderId = Number(activity.order_id);
+        const current = grouped.get(orderId) || {
+          order_id: orderId,
+          view_count: 0,
+          latest_view_at: null,
+          viewers: new Set(),
+        };
+
+        current.view_count += 1;
+
+        if (activity.user_id) {
+          current.viewers.add(Number(activity.user_id));
+        } else if (activity.session_id) {
+          current.viewers.add(`session:${activity.session_id}`);
+        }
+
+        const activityTime =
+          activity.created_at || activity.date || null;
+
+        if (
+          activityTime &&
+          (!current.latest_view_at ||
+            new Date(activityTime) >
+              new Date(current.latest_view_at))
+        ) {
+          current.latest_view_at = activityTime;
+        }
+
+        grouped.set(orderId, current);
+      });
+
+    return Array.from(grouped.values())
+      .map((item) => ({
+        ...item,
+        unique_viewers: item.viewers.size,
+      }))
+      .sort((a, b) => b.view_count - a.view_count);
+  }, [recentActivities]);
+
   useEffect(() => {
     if (!currentUser || !isAdmin) {
       alert("Bạn không có quyền truy cập trang Admin Dashboard.");
@@ -126,7 +175,7 @@ function AdminDashboardPage() {
           api.get("/dashboard/stats"),
           api.get(`/dashboard/revenue?group_by=${revenueType}`),
           api.get(`/dashboard/traffic?group_by=${trafficType}`),
-          api.get("/dashboard/recent-activity?limit=50"),
+          api.get("/dashboard/recent-activity?limit=200"),
         ]);
 
       setStats(statsRes.data || {});
@@ -475,6 +524,61 @@ function AdminDashboardPage() {
                 </div>
               )}
             </div>
+          </section>
+
+          <section style={{ ...styles.panel, marginTop: "22px" }}>
+            <div style={styles.panelHeader}>
+              <div>
+                <h2 style={styles.panelTitle}>
+                  Thống kê lượt xem từng đơn hàng
+                </h2>
+
+                <p style={styles.panelDescription}>
+                  Tổng hợp số lượt xem và số người xem của từng đơn hàng.
+                </p>
+              </div>
+            </div>
+
+            {orderViewStats.length === 0 ? (
+              <p style={styles.muted}>
+                Chưa có lượt xem chi tiết đơn hàng nào.
+              </p>
+            ) : (
+              <div style={styles.tableWrapper}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Mã đơn hàng</th>
+                      <th style={styles.th}>Số lượt xem</th>
+                      <th style={styles.th}>Số người xem</th>
+                      <th style={styles.th}>Lần xem gần nhất</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {orderViewStats.map((item) => (
+                      <tr key={item.order_id}>
+                        <td style={styles.td}>
+                          <strong>DH{item.order_id}</strong>
+                        </td>
+
+                        <td style={styles.td}>
+                          {formatNumber(item.view_count)}
+                        </td>
+
+                        <td style={styles.td}>
+                          {formatNumber(item.unique_viewers)}
+                        </td>
+
+                        <td style={styles.td}>
+                          {formatDateTime(item.latest_view_at)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </section>
 
           <section style={{ ...styles.panel, marginTop: "22px" }}>
