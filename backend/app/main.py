@@ -74,6 +74,7 @@ app.add_middleware(
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
         "https://nhom-bx.vercel.app",
+        "https://nhom-cq8e4bky7-bx-shophub.vercel.app",
     ],
     allow_credentials=True,
     allow_methods=["*"],
