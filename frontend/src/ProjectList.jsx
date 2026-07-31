@@ -2,9 +2,10 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import api from "./api";
 import { useCart } from "./CartContext";
+import "./ProjectList.css";
 
 const FALLBACK_IMAGE =
-  "https://dummyimage.com/300x200/eef6ff/1769ff&text=ShopHub";
+  "https://dummyimage.com/600x450/eaf2ff/1769ff&text=ShopHub";
 
 function ProjectList() {
   const [searchParams] = useSearchParams();
@@ -21,13 +22,11 @@ function ProjectList() {
   }
 
   const searchFromHome = searchParams.get("search") || "";
-  const categoryFromHome =
-    searchParams.get("category") || "All";
+  const categoryFromHome = searchParams.get("category") || "All";
 
   const [products, setProducts] = useState([]);
   const [search, setSearch] = useState(searchFromHome);
-  const [category, setCategory] =
-    useState(categoryFromHome);
+  const [category, setCategory] = useState(categoryFromHome);
   const [sortPrice, setSortPrice] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -42,7 +41,6 @@ function ProjectList() {
         setLoading(true);
 
         const response = await api.get("/products");
-
         const productData = Array.isArray(response.data)
           ? response.data
           : response.data?.products || [];
@@ -53,7 +51,6 @@ function ProjectList() {
           "Lỗi lấy sản phẩm từ database:",
           error.response?.data || error.message
         );
-
         setProducts([]);
       } finally {
         setLoading(false);
@@ -71,33 +68,18 @@ function ProjectList() {
       return product.category.name || "Khác";
     }
 
-    return (
-      product?.category_name ||
-      product?.category ||
-      "Khác"
-    );
+    return product?.category_name || product?.category || "Khác";
   };
 
   const getImageUrl = (product) => {
-    const image =
-      product?.image_url ||
-      product?.image;
+    const image = product?.image_url || product?.image;
 
-    if (!image) {
-      return FALLBACK_IMAGE;
-    }
-
-    if (image.startsWith("http")) {
-      return image;
-    }
-
+    if (!image) return FALLBACK_IMAGE;
+    if (image.startsWith("http")) return image;
     if (image.startsWith("/uploads")) {
       return `${api.defaults.baseURL}${image}`;
     }
-
-    if (image.startsWith("/images")) {
-      return image;
-    }
+    if (image.startsWith("/images")) return image;
 
     return image;
   };
@@ -107,18 +89,12 @@ function ProjectList() {
       .map((product) => getCategoryName(product))
       .filter(Boolean);
 
-    return [
-      "All",
-      ...new Set(categoryNames),
-    ];
+    return ["All", ...new Set(categoryNames)];
   }, [products]);
 
   const filteredProducts = useMemo(() => {
     let result = [...products];
-
-    const normalizedSearch = search
-      .trim()
-      .toLowerCase();
+    const normalizedSearch = search.trim().toLowerCase();
 
     if (normalizedSearch) {
       result = result.filter((product) =>
@@ -130,8 +106,7 @@ function ProjectList() {
 
     if (category !== "All") {
       result = result.filter(
-        (product) =>
-          getCategoryName(product) === category
+        (product) => getCategoryName(product) === category
       );
     }
 
@@ -154,11 +129,8 @@ function ProjectList() {
     return result;
   }, [products, search, category, sortPrice]);
 
-  const formatPrice = (price) => {
-    return `${Number(price || 0).toLocaleString(
-      "vi-VN"
-    )} đ`;
-  };
+  const formatPrice = (price) =>
+    `${Number(price || 0).toLocaleString("vi-VN")} đ`;
 
   const resetFilter = () => {
     setSearch("");
@@ -173,10 +145,7 @@ function ProjectList() {
     }
 
     addToCart(product);
-
-    alert(
-      `Đã thêm "${product.name}" vào giỏ hàng`
-    );
+    alert(`Đã thêm "${product.name}" vào giỏ hàng`);
   };
 
   const handleImageError = (event) => {
@@ -185,452 +154,220 @@ function ProjectList() {
   };
 
   const isAdmin =
-    currentUser?.role === "admin" ||
-    currentUser?.role === "ADMIN";
+    currentUser?.role === "admin" || currentUser?.role === "ADMIN";
 
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <Link to="/" style={styles.logo}>
-          <div style={styles.logoBox}>S</div>
-
-          <h1 style={styles.logoText}>
-            Shop
-            <span style={{ color: "#1769ff" }}>
-              Hub
-            </span>
-          </h1>
-        </Link>
-
-        <nav style={styles.nav}>
-          <Link style={styles.navLink} to="/">
-            Trang chủ
+    <div className="products-page">
+      <header className="products-header">
+        <div className="products-container products-header-inner">
+          <Link to="/" className="products-logo" aria-label="ShopHub">
+            <div className="products-logo-box">S</div>
+            <h1>
+              Shop<span>Hub</span>
+            </h1>
           </Link>
 
-          <Link
-            style={styles.activeLink}
-            to="/products"
-          >
-            Sản phẩm
-          </Link>
-
-          <Link style={styles.navLink} to="/cart">
-            Giỏ hàng 🛒 ({cartCount})
-          </Link>
-
-          <Link style={styles.navLink} to="/orders">
-            Đơn hàng 🧾
-          </Link>
-
-          {isAdmin && (
-            <Link
-              style={styles.navLink}
-              to="/admin/products"
-            >
-              Admin
+          <nav className="products-nav">
+            <Link to="/">Trang chủ</Link>
+            <Link className="active" to="/products">
+              Sản phẩm
             </Link>
-          )}
-        </nav>
+            <Link to="/cart">
+              Giỏ hàng <span className="cart-count">({cartCount})</span>
+            </Link>
+            <Link to="/orders">Đơn hàng</Link>
+            {isAdmin && <Link to="/admin/products">Admin</Link>}
+          </nav>
+        </div>
       </header>
 
-      <section style={styles.titleBox}>
-        <h2 style={styles.title}>
-          Danh sách sản phẩm
-        </h2>
-
-        <p style={styles.subtitle}>
-          Tìm kiếm, lọc danh mục và sắp xếp sản
-          phẩm trong ShopHub.
-        </p>
-      </section>
-
-      <section style={styles.filterBox}>
-        <input
-          style={styles.input}
-          type="text"
-          placeholder="Tìm kiếm sản phẩm..."
-          value={search}
-          onChange={(event) =>
-            setSearch(event.target.value)
-          }
-        />
-
-        <select
-          style={styles.select}
-          value={category}
-          onChange={(event) =>
-            setCategory(event.target.value)
-          }
-        >
-          {categories.map((item) => (
-            <option key={item} value={item}>
-              {item === "All"
-                ? "Tất cả danh mục"
-                : item}
-            </option>
-          ))}
-        </select>
-
-        <select
-          style={styles.select}
-          value={sortPrice}
-          onChange={(event) =>
-            setSortPrice(event.target.value)
-          }
-        >
-          <option value="">Sắp xếp giá</option>
-          <option value="asc">
-            Giá thấp đến cao
-          </option>
-          <option value="desc">
-            Giá cao đến thấp
-          </option>
-        </select>
-
-        <button
-          type="button"
-          style={styles.resetBtn}
-          onClick={resetFilter}
-        >
-          Làm mới
-        </button>
-      </section>
-
-      {loading ? (
-        <div style={styles.emptyBox}>
-          <h3>Đang tải sản phẩm...</h3>
-        </div>
-      ) : (
-        <>
-          <div style={styles.resultText}>
-            Tìm thấy{" "}
-            <b>{filteredProducts.length}</b>{" "}
-            sản phẩm
+      <main className="products-container products-main">
+        <section className="products-hero">
+          <div>
+            <span className="products-kicker">Khám phá công nghệ</span>
+            <h2>Danh sách sản phẩm</h2>
+            <p>
+              Tìm kiếm, lọc danh mục và sắp xếp sản phẩm phù hợp với nhu cầu của bạn.
+            </p>
           </div>
 
-          {filteredProducts.length > 0 ? (
-            <section style={styles.grid}>
-              {filteredProducts.map((product) => {
-                const outOfStock =
-                  Number(product?.stock || 0) <= 0;
+          <div className="products-hero-stat">
+            <strong>{products.length}</strong>
+            <span>Sản phẩm đang có</span>
+          </div>
+        </section>
 
-                return (
-                  <div
-                    style={styles.card}
-                    key={product.id}
-                  >
-                    <div style={styles.productImage}>
-                      <img
-                        src={getImageUrl(product)}
-                        alt={
-                          product.name ||
-                          "Sản phẩm ShopHub"
-                        }
-                        style={styles.productImg}
-                        onError={handleImageError}
-                      />
-                    </div>
+        <section className="products-filter-panel">
+          <div className="filter-field search-field">
+            <label htmlFor="product-search">Tìm kiếm</label>
+            <div className="search-input-wrap">
+              <span>⌕</span>
+              <input
+                id="product-search"
+                type="text"
+                placeholder="Nhập tên sản phẩm..."
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+              />
+            </div>
+          </div>
 
-                    <div style={styles.cardBody}>
-                      <span style={styles.category}>
-                        {getCategoryName(product)}
-                      </span>
+          <div className="filter-field">
+            <label htmlFor="category-filter">Danh mục</label>
+            <select
+              id="category-filter"
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+            >
+              {categories.map((item) => (
+                <option key={item} value={item}>
+                  {item === "All" ? "Tất cả danh mục" : item}
+                </option>
+              ))}
+            </select>
+          </div>
 
-                      <h3 style={styles.productName}>
-                        {product.name}
-                      </h3>
+          <div className="filter-field">
+            <label htmlFor="sort-filter">Sắp xếp</label>
+            <select
+              id="sort-filter"
+              value={sortPrice}
+              onChange={(event) => setSortPrice(event.target.value)}
+            >
+              <option value="">Sắp xếp giá</option>
+              <option value="asc">Giá thấp đến cao</option>
+              <option value="desc">Giá cao đến thấp</option>
+            </select>
+          </div>
 
-                      <p style={styles.description}>
-                        {product.description ||
-                          "Chưa có mô tả sản phẩm."}
-                      </p>
+          <button
+            type="button"
+            className="reset-filter-button"
+            onClick={resetFilter}
+          >
+            Làm mới
+          </button>
+        </section>
 
-                      <p style={styles.price}>
-                        {formatPrice(product.price)}
-                      </p>
-
-                      <p style={styles.stock}>
-                        Kho: {product.stock ?? 0} sản phẩm
-                      </p>
-
-                      <div style={styles.actions}>
-                        <Link
-                          to={`/products/${product.id}`}
-                          style={styles.detailBtn}
-                        >
-                          Xem chi tiết
-                        </Link>
-
-                        <button
-                          type="button"
-                          style={{
-                            ...styles.cartBtn,
-                            opacity: outOfStock
-                              ? 0.6
-                              : 1,
-                            cursor: outOfStock
-                              ? "not-allowed"
-                              : "pointer",
-                          }}
-                          disabled={outOfStock}
-                          onClick={() =>
-                            handleAddToCart(product)
-                          }
-                        >
-                          {outOfStock
-                            ? "Hết hàng"
-                            : "Thêm vào giỏ"}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </section>
-          ) : (
-            <div style={styles.emptyBox}>
-              <h3>Không tìm thấy sản phẩm</h3>
-
+        {loading ? (
+          <section className="products-loading">
+            <div className="loading-spinner" />
+            <h3>Đang tải sản phẩm...</h3>
+          </section>
+        ) : (
+          <>
+            <div className="products-result-row">
               <p>
-                Hãy thử thay đổi từ khóa tìm kiếm
-                hoặc chọn danh mục khác.
+                Tìm thấy <strong>{filteredProducts.length}</strong> sản phẩm
               </p>
             </div>
-          )}
-        </>
-      )}
+
+            {filteredProducts.length > 0 ? (
+              <section className="products-grid">
+                {filteredProducts.map((product, index) => {
+                  const outOfStock = Number(product?.stock || 0) <= 0;
+
+                  return (
+                    <article className="catalog-card" key={product.id}>
+                      <div className="catalog-card-top">
+                        <span className="catalog-badge">
+                          {outOfStock
+                            ? "HẾT HÀNG"
+                            : index % 3 === 0
+                            ? "BÁN CHẠY"
+                            : index % 3 === 1
+                            ? "MỚI"
+                            : "NỔI BẬT"}
+                        </span>
+
+                        <Link
+                          to={`/products/${product.id}`}
+                          className="catalog-image"
+                        >
+                          <img
+                            src={getImageUrl(product)}
+                            alt={product.name || "Sản phẩm ShopHub"}
+                            onError={handleImageError}
+                          />
+                        </Link>
+                      </div>
+
+                      <div className="catalog-body">
+                        <span className="catalog-category">
+                          {getCategoryName(product)}
+                        </span>
+
+                        <Link
+                          to={`/products/${product.id}`}
+                          className="catalog-name"
+                        >
+                          {product.name}
+                        </Link>
+
+                        <p className="catalog-description">
+                          {product.description || "Chưa có mô tả sản phẩm."}
+                        </p>
+
+                        <div className="catalog-rating">
+                          <span>★★★★★</span>
+                          <small>({24 + index * 7})</small>
+                        </div>
+
+                        <div className="catalog-price-row">
+                          <div>
+                            <strong>{formatPrice(product.price)}</strong>
+                            <small>
+                              {formatPrice(Number(product.price || 0) * 1.12)}
+                            </small>
+                          </div>
+
+                          <span
+                            className={
+                              outOfStock
+                                ? "catalog-stock out"
+                                : "catalog-stock"
+                            }
+                          >
+                            {outOfStock
+                              ? "Hết hàng"
+                              : `Còn ${product.stock ?? 0}`}
+                          </span>
+                        </div>
+
+                        <div className="catalog-actions">
+                          <Link
+                            to={`/products/${product.id}`}
+                            className="detail-button"
+                          >
+                            Xem chi tiết
+                          </Link>
+
+                          <button
+                            type="button"
+                            className="add-cart-button"
+                            disabled={outOfStock}
+                            onClick={() => handleAddToCart(product)}
+                          >
+                            {outOfStock ? "Hết hàng" : "Thêm vào giỏ"}
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </section>
+            ) : (
+              <section className="products-empty">
+                <span>📦</span>
+                <h3>Không tìm thấy sản phẩm</h3>
+                <p>Hãy thử thay đổi từ khóa hoặc chọn danh mục khác.</p>
+              </section>
+            )}
+          </>
+        )}
+      </main>
     </div>
   );
 }
-
-const styles = {
-  page: {
-    width: "100%",
-    minHeight: "100vh",
-    padding: "0 115px 40px",
-    backgroundColor: "#ffffff",
-    color: "#111827",
-  },
-
-  header: {
-    height: "78px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  logo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    textDecoration: "none",
-    color: "black",
-  },
-
-  logoBox: {
-    width: "42px",
-    height: "42px",
-    backgroundColor: "#1769ff",
-    color: "white",
-    borderRadius: "10px",
-    fontSize: "26px",
-    fontWeight: "800",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  logoText: {
-    margin: 0,
-    fontSize: "32px",
-    fontWeight: "800",
-  },
-
-  nav: {
-    display: "flex",
-    alignItems: "center",
-    gap: "28px",
-  },
-
-  navLink: {
-    color: "black",
-    textDecoration: "none",
-    fontWeight: "600",
-  },
-
-  activeLink: {
-    color: "#1769ff",
-    textDecoration: "none",
-    fontWeight: "700",
-    borderBottom: "3px solid #1769ff",
-    paddingBottom: "24px",
-  },
-
-  titleBox: {
-    background:
-      "linear-gradient(120deg, #eef6ff, #ffffff)",
-    borderRadius: "12px",
-    padding: "35px 40px",
-    marginTop: "15px",
-    marginBottom: "20px",
-  },
-
-  title: {
-    margin: "0 0 8px",
-    fontSize: "34px",
-  },
-
-  subtitle: {
-    margin: 0,
-    color: "#6b7280",
-  },
-
-  filterBox: {
-    display: "grid",
-    gridTemplateColumns:
-      "1.5fr 1fr 1fr auto",
-    gap: "15px",
-    marginBottom: "18px",
-  },
-
-  input: {
-    height: "48px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    padding: "0 15px",
-    fontSize: "15px",
-  },
-
-  select: {
-    height: "48px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    padding: "0 12px",
-    fontSize: "15px",
-    backgroundColor: "white",
-  },
-
-  resetBtn: {
-    height: "48px",
-    backgroundColor: "#111827",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    padding: "0 22px",
-    fontWeight: "700",
-    cursor: "pointer",
-  },
-
-  resultText: {
-    marginBottom: "15px",
-    fontSize: "16px",
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(4, minmax(0, 1fr))",
-    gap: "22px",
-  },
-
-  card: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    overflow: "hidden",
-    boxShadow:
-      "0 8px 22px rgba(0,0,0,0.04)",
-    backgroundColor: "white",
-  },
-
-  productImage: {
-    height: "180px",
-    backgroundColor: "#f3f8ff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  productImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    padding: "15px",
-  },
-
-  cardBody: {
-    padding: "18px",
-  },
-
-  category: {
-    display: "inline-block",
-    backgroundColor: "#dbeafe",
-    color: "#1769ff",
-    padding: "5px 12px",
-    borderRadius: "20px",
-    fontSize: "13px",
-    fontWeight: "700",
-    marginBottom: "10px",
-  },
-
-  productName: {
-    margin: "0 0 8px",
-    fontSize: "18px",
-    minHeight: "44px",
-  },
-
-  description: {
-    margin: "0 0 12px",
-    color: "#6b7280",
-    fontSize: "14px",
-    minHeight: "40px",
-    lineHeight: "1.5",
-  },
-
-  price: {
-    color: "#1769ff",
-    fontSize: "20px",
-    fontWeight: "800",
-    margin: "0 0 8px",
-  },
-
-  stock: {
-    color: "#6b7280",
-    fontSize: "14px",
-    margin: "0 0 15px",
-  },
-
-  actions: {
-    display: "flex",
-    gap: "10px",
-  },
-
-  detailBtn: {
-    flex: 1,
-    backgroundColor: "#111827",
-    color: "white",
-    textAlign: "center",
-    padding: "10px",
-    borderRadius: "6px",
-    textDecoration: "none",
-    fontWeight: "700",
-  },
-
-  cartBtn: {
-    flex: 1,
-    backgroundColor: "#1769ff",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    fontWeight: "700",
-  },
-
-  emptyBox: {
-    textAlign: "center",
-    padding: "60px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    color: "#6b7280",
-  },
-};
 
 export default ProjectList;

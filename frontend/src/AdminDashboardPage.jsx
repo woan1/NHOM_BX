@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import api from "./api";
+import "./AdminDashboardPage.css";
 
 function AdminDashboardPage() {
   const navigate = useNavigate();
@@ -24,32 +25,24 @@ function AdminDashboardPage() {
 
   const [revenueType, setRevenueType] = useState("month");
   const [revenueData, setRevenueData] = useState([]);
-
   const [trafficType, setTrafficType] = useState("day");
   const [trafficData, setTrafficData] = useState([]);
-
   const [orders, setOrders] = useState([]);
   const [recentActivities, setRecentActivities] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const formatPrice = (price) => {
-    return `${Number(price || 0).toLocaleString("vi-VN")} đ`;
-  };
+  const formatPrice = (price) =>
+    `${Number(price || 0).toLocaleString("vi-VN")} đ`;
 
-  const formatNumber = (value) => {
-    return Number(value || 0).toLocaleString("vi-VN");
-  };
+  const formatNumber = (value) =>
+    Number(value || 0).toLocaleString("vi-VN");
 
   const formatDateTime = (value) => {
     if (!value) return "Chưa có";
-
     const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return value;
-    }
-
-    return date.toLocaleString("vi-VN");
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleString("vi-VN");
   };
 
   const getActivityObject = (activity) => {
@@ -67,10 +60,7 @@ function AdminDashboardPage() {
       };
     }
 
-    return {
-      label: "—",
-      name: "Không có",
-    };
+    return { label: "—", name: "Không có" };
   };
 
   const isAdmin = ["ADMIN", "admin"].includes(currentUser?.role);
@@ -80,7 +70,6 @@ function AdminDashboardPage() {
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, "0");
     const day = String(now.getDate()).padStart(2, "0");
-
     return `${year}-${month}-${day}`;
   };
 
@@ -113,8 +102,7 @@ function AdminDashboardPage() {
     recentActivities
       .filter(
         (activity) =>
-          activity.event_type === "PRODUCT_VIEW" &&
-          activity.product_id
+          activity.event_type === "PRODUCT_VIEW" && activity.product_id
       )
       .forEach((activity) => {
         const productId = Number(activity.product_id);
@@ -139,14 +127,12 @@ function AdminDashboardPage() {
           current.viewers.add(`session:${activity.session_id}`);
         }
 
-        const activityTime =
-          activity.created_at || activity.date || null;
+        const activityTime = activity.created_at || activity.date || null;
 
         if (
           activityTime &&
           (!current.latest_view_at ||
-            new Date(activityTime) >
-              new Date(current.latest_view_at))
+            new Date(activityTime) > new Date(current.latest_view_at))
         ) {
           current.latest_view_at = activityTime;
         }
@@ -185,11 +171,9 @@ function AdminDashboardPage() {
         ]);
 
       setStats(statsRes.data || {});
-
       setRevenueData(
         Array.isArray(revenueRes.data) ? revenueRes.data : []
       );
-
       setTrafficData(
         Array.isArray(trafficRes.data)
           ? trafficRes.data
@@ -239,763 +223,412 @@ function AdminDashboardPage() {
     }
   };
 
-  const buttonStyle = (isActive) => ({
-    ...styles.filterBtn,
-    ...(isActive ? styles.activeFilterBtn : {}),
-  });
+  const statCards = [
+    {
+      label: "Tổng sản phẩm",
+      value: formatNumber(stats.total_products),
+      icon: "📦",
+      tone: "blue",
+    },
+    {
+      label: "Tổng đơn hàng",
+      value: formatNumber(stats.total_orders),
+      icon: "🧾",
+      tone: "violet",
+    },
+    {
+      label: "Tổng người dùng",
+      value: formatNumber(stats.total_users),
+      icon: "👤",
+      tone: "orange",
+    },
+    {
+      label: "Tổng doanh thu",
+      value: formatPrice(stats.total_revenue),
+      icon: "💰",
+      tone: "green",
+    },
+    {
+      label: "Tổng lượt truy cập",
+      value: formatNumber(trafficSummary.totalWebsiteVisits),
+      icon: "🌐",
+      tone: "cyan",
+    },
+    {
+      label: "Truy cập hôm nay",
+      value:
+        trafficType === "day"
+          ? formatNumber(trafficSummary.visitsToday)
+          : "Chọn Ngày",
+      icon: "📅",
+      tone: "pink",
+    },
+    {
+      label: "Lượt xem đơn hàng",
+      value: formatNumber(trafficSummary.totalOrderViews),
+      icon: "👁️",
+      tone: "slate",
+    },
+    {
+      label: "Lượt xem sản phẩm",
+      value: formatNumber(stats.total_product_views),
+      icon: "🛍️",
+      tone: "yellow",
+    },
+  ];
 
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <Link to="/" style={styles.logo}>
-          <div style={styles.logoBox}>S</div>
-
-          <h1 style={styles.logoText}>
-            Shop<span style={{ color: "#1769ff" }}>Hub</span>
-          </h1>
-        </Link>
-
-        <nav style={styles.nav}>
-          <Link style={styles.navLink} to="/">
-            Trang chủ
+    <div className="admin-dashboard-page">
+      <header className="admin-header">
+        <div className="admin-container admin-header-inner">
+          <Link to="/" className="admin-logo">
+            <div className="admin-logo-box">S</div>
+            <h1>
+              Shop<span>Hub</span>
+            </h1>
           </Link>
 
-          <Link style={styles.navLink} to="/products">
-            Sản phẩm
-          </Link>
-
-          <Link style={styles.activeLink} to="/admin/dashboard">
-            Dashboard
-          </Link>
-
-          <Link style={styles.navLink} to="/admin/products">
-            Quản lý sản phẩm
-          </Link>
-
-          <Link style={styles.navLink} to="/admin/orders">
-            Quản lý đơn hàng
-          </Link>
-        </nav>
+          <nav className="admin-nav">
+            <Link to="/">Trang chủ</Link>
+            <Link to="/products">Sản phẩm</Link>
+            <Link className="active" to="/admin/dashboard">
+              Dashboard
+            </Link>
+            <Link to="/admin/products">Quản lý sản phẩm</Link>
+            <Link to="/admin/orders">Quản lý đơn hàng</Link>
+          </nav>
+        </div>
       </header>
 
-      <section style={styles.titleBox}>
-        <h1 style={styles.title}>Admin Dashboard</h1>
+      <main className="admin-container admin-main">
+        <section className="admin-hero">
+          <div>
+            <span className="admin-kicker">Trung tâm quản trị</span>
+            <h2>Admin Dashboard</h2>
+            <p>
+              Tổng quan sản phẩm, đơn hàng, người dùng, doanh thu và lượt truy cập.
+            </p>
+          </div>
 
-        <p style={styles.subtitle}>
-          Tổng quan sản phẩm, đơn hàng, người dùng, doanh thu và lượt truy cập.
-        </p>
-      </section>
+          <button
+            type="button"
+            className="admin-refresh-button"
+            onClick={fetchDashboardData}
+          >
+            Làm mới dữ liệu
+          </button>
+        </section>
 
-      {loading ? (
-        <div style={styles.emptyBox}>
-          <h2>Đang tải dữ liệu Dashboard...</h2>
-        </div>
-      ) : (
-        <>
-          <section style={styles.statsGrid}>
-            <div style={styles.statCard}>
-              <span style={styles.icon}>📦</span>
-              <div>
-                <p style={styles.statLabel}>Tổng sản phẩm</p>
-                <h2 style={styles.statValue}>
-                  {formatNumber(stats.total_products)}
-                </h2>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <span style={styles.icon}>🧾</span>
-              <div>
-                <p style={styles.statLabel}>Tổng đơn hàng</p>
-                <h2 style={styles.statValue}>
-                  {formatNumber(stats.total_orders)}
-                </h2>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <span style={styles.icon}>👤</span>
-              <div>
-                <p style={styles.statLabel}>Tổng người dùng</p>
-                <h2 style={styles.statValue}>
-                  {formatNumber(stats.total_users)}
-                </h2>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <span style={styles.icon}>💰</span>
-              <div>
-                <p style={styles.statLabel}>Tổng doanh thu</p>
-                <h2 style={styles.statValue}>
-                  {formatPrice(stats.total_revenue)}
-                </h2>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <span style={styles.icon}>🌐</span>
-              <div>
-                <p style={styles.statLabel}>Tổng lượt truy cập</p>
-                <h2 style={styles.statValue}>
-                  {formatNumber(trafficSummary.totalWebsiteVisits)}
-                </h2>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <span style={styles.icon}>📅</span>
-              <div>
-                <p style={styles.statLabel}>Truy cập hôm nay</p>
-                <h2 style={styles.statValue}>
-                  {trafficType === "day"
-                    ? formatNumber(trafficSummary.visitsToday)
-                    : "Chọn Ngày"}
-                </h2>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <span style={styles.icon}>👁️</span>
-              <div>
-                <p style={styles.statLabel}>Lượt xem đơn hàng</p>
-                <h2 style={styles.statValue}>
-                  {formatNumber(trafficSummary.totalOrderViews)}
-                </h2>
-              </div>
-            </div>
-
-            <div style={styles.statCard}>
-              <span style={styles.icon}>🛍️</span>
-              <div>
-                <p style={styles.statLabel}>Lượt xem sản phẩm</p>
-                <h2 style={styles.statValue}>
-                  {formatNumber(stats.total_product_views)}
-                </h2>
-              </div>
-            </div>
+        {loading ? (
+          <section className="admin-loading">
+            <div className="admin-spinner" />
+            <h3>Đang tải dữ liệu Dashboard...</h3>
           </section>
-
-          <section style={styles.contentGrid}>
-            <div style={styles.panel}>
-              <div style={styles.panelHeader}>
-                <h2 style={styles.panelTitle}>Doanh thu</h2>
-
-                <div style={styles.filterGroup}>
-                  <button
-                    type="button"
-                    onClick={() => setRevenueType("day")}
-                    style={buttonStyle(revenueType === "day")}
-                  >
-                    Ngày
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRevenueType("month")}
-                    style={buttonStyle(revenueType === "month")}
-                  >
-                    Tháng
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRevenueType("year")}
-                    style={buttonStyle(revenueType === "year")}
-                  >
-                    Năm
-                  </button>
-                </div>
-              </div>
-
-              {revenueData.length === 0 ? (
-                <p style={styles.muted}>Chưa có dữ liệu doanh thu.</p>
-              ) : (
-                <div style={styles.tableWrapper}>
-                  <table style={styles.table}>
-                    <thead>
-                      <tr>
-                        <th style={styles.th}>
-                          {revenueType === "day"
-                            ? "Ngày"
-                            : revenueType === "year"
-                            ? "Năm"
-                            : "Tháng"}
-                        </th>
-                        <th style={styles.th}>Doanh thu sản phẩm</th>
-                        <th style={styles.th}>Phí vận chuyển</th>
-                        <th style={styles.th}>Tổng thu</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {revenueData.map((item) => (
-                        <tr key={item.period}>
-                          <td style={styles.td}>{item.period}</td>
-
-                          <td style={styles.td}>
-                            {formatPrice(item.revenue)}
-                          </td>
-
-                          <td style={styles.td}>
-                            {formatPrice(item.shipping_fee)}
-                          </td>
-
-                          <td style={styles.td}>
-                            <strong>
-                              {formatPrice(
-                                item.total_collected ??
-                                  Number(item.revenue || 0) +
-                                    Number(item.shipping_fee || 0)
-                              )}
-                            </strong>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div style={styles.panel}>
-              <div style={styles.panelHeader}>
-                <h2 style={styles.panelTitle}>Thống kê truy cập</h2>
-
-                <div style={styles.filterGroup}>
-                  <button
-                    type="button"
-                    onClick={() => setTrafficType("day")}
-                    style={buttonStyle(trafficType === "day")}
-                  >
-                    Ngày
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTrafficType("month")}
-                    style={buttonStyle(trafficType === "month")}
-                  >
-                    Tháng
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setTrafficType("year")}
-                    style={buttonStyle(trafficType === "year")}
-                  >
-                    Năm
-                  </button>
-                </div>
-              </div>
-
-              {trafficData.length === 0 ? (
-                <p style={styles.muted}>
-                  Chưa có dữ liệu lượt truy cập.
-                </p>
-              ) : (
-                <div style={styles.tableWrapper}>
-                  <table style={styles.table}>
-                    <thead>
-                      <tr>
-                        <th style={styles.th}>
-                          {trafficType === "day"
-                            ? "Ngày"
-                            : trafficType === "year"
-                            ? "Năm"
-                            : "Tháng"}
-                        </th>
-
-                        <th style={styles.th}>Lượt truy cập</th>
-                        <th style={styles.th}>Lượt xem đơn hàng</th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {trafficData.map((item) => (
-                        <tr key={item.period}>
-                          <td style={styles.td}>{item.period}</td>
-
-                          <td style={styles.td}>
-                            {formatNumber(item.website_visits)}
-                          </td>
-
-                          <td style={styles.td}>
-                            {formatNumber(item.order_views)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section style={{ ...styles.panel, marginTop: "22px" }}>
-            <div style={styles.panelHeader}>
-              <div>
-                <h2 style={styles.panelTitle}>
-                  Thống kê lượt xem từng sản phẩm
-                </h2>
-
-                <p style={styles.panelDescription}>
-                  Tổng hợp số lượt xem và số người xem của từng sản phẩm.
-                </p>
-              </div>
-            </div>
-
-            {productViewStats.length === 0 ? (
-              <p style={styles.muted}>
-                Chưa có lượt xem sản phẩm nào.
-              </p>
-            ) : (
-              <div style={styles.tableWrapper}>
-                <table style={styles.table}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Mã sản phẩm</th>
-                      <th style={styles.th}>Tên sản phẩm</th>
-                      <th style={styles.th}>Số lượt xem</th>
-                      <th style={styles.th}>Số người xem</th>
-                      <th style={styles.th}>Lần xem gần nhất</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {productViewStats.map((item) => (
-                      <tr key={item.product_id}>
-                        <td style={styles.td}>
-                          <strong>SP{item.product_id}</strong>
-                        </td>
-
-                        <td style={styles.td}>
-                          {item.product_name}
-                        </td>
-
-                        <td style={styles.td}>
-                          {formatNumber(item.view_count)}
-                        </td>
-
-                        <td style={styles.td}>
-                          {formatNumber(item.unique_viewers)}
-                        </td>
-
-                        <td style={styles.td}>
-                          {formatDateTime(item.latest_view_at)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section style={{ ...styles.panel, marginTop: "22px" }}>
-            <div style={styles.panelHeader}>
-              <div>
-                <h2 style={styles.panelTitle}>Hoạt động gần đây</h2>
-                <p style={styles.panelDescription}>
-                  Hiển thị ID, tên và email của người xem sản phẩm hoặc đơn hàng.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={fetchDashboardData}
-                style={styles.refreshBtn}
-              >
-                Làm mới
-              </button>
-            </div>
-
-            {recentActivities.length === 0 ? (
-              <p style={styles.muted}>Chưa có hoạt động nào.</p>
-            ) : (
-              <div style={styles.tableWrapper}>
-                <table style={{ ...styles.table, minWidth: "1100px" }}>
-                  <thead>
-                    <tr>
-                      <th style={styles.th}>Thời gian</th>
-                      <th style={styles.th}>Hoạt động</th>
-                      <th style={styles.th}>ID người xem</th>
-                      <th style={styles.th}>Tên người xem</th>
-                      <th style={styles.th}>Email</th>
-                      <th style={styles.th}>Đối tượng</th>
-                      <th style={styles.th}>Tên sản phẩm/đơn hàng</th>
-                      <th style={styles.th}>Đường dẫn</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {recentActivities.map((activity) => {
-                      const objectInfo = getActivityObject(activity);
-
-                      return (
-                        <tr key={activity.id}>
-                          <td style={styles.td}>
-                            {formatDateTime(
-                              activity.created_at || activity.date
-                            )}
-                          </td>
-
-                          <td style={styles.td}>
-                            <span style={styles.activityBadge}>
-                              {activity.activity_name ||
-                                activity.event_type ||
-                                "Hoạt động"}
-                            </span>
-                          </td>
-
-                          <td style={styles.td}>
-                            <strong>
-                              {activity.user_id ?? "Khách"}
-                            </strong>
-                          </td>
-
-                          <td style={styles.td}>
-                            {activity.customer_name ||
-                              "Khách chưa đăng nhập"}
-                          </td>
-
-                          <td style={styles.td}>
-                            {activity.customer_email || "Chưa có"}
-                          </td>
-
-                          <td style={styles.td}>{objectInfo.label}</td>
-
-                          <td style={styles.td}>{objectInfo.name}</td>
-
-                          <td style={styles.td}>
-                            {activity.page_path || "Chưa có"}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section style={{ ...styles.panel, marginTop: "22px" }}>
-            <div style={styles.panelHeader}>
-              <h2 style={styles.panelTitle}>Đơn hàng mới</h2>
-
-              <Link to="/admin/orders" style={styles.viewAll}>
-                Xem tất cả
-              </Link>
-            </div>
-
-            {orders.length === 0 ? (
-              <p style={styles.muted}>Chưa có đơn hàng nào.</p>
-            ) : (
-              <div style={styles.orderList}>
-                {orders.map((order) => (
-                  <div key={order.id} style={styles.orderItem}>
-                    <div>
-                      <h3 style={styles.orderTitle}>DH{order.id}</h3>
-
-                      <p style={styles.orderText}>
-                        Khách hàng: {order.shipping_name || "Chưa có"}
-                      </p>
-
-                      <p style={styles.orderText}>
-                        Trạng thái: {order.status || "Đang xử lý"}
-                      </p>
-                    </div>
-
-                    <strong style={styles.orderPrice}>
-                      {formatPrice(
-                        order.total_amount ||
-                          order.total_price ||
-                          order.total
-                      )}
-                    </strong>
+        ) : (
+          <>
+            <section className="admin-stats-grid">
+              {statCards.map((card) => (
+                <article
+                  className={`admin-stat-card ${card.tone}`}
+                  key={card.label}
+                >
+                  <span className="admin-stat-icon">{card.icon}</span>
+                  <div>
+                    <p>{card.label}</p>
+                    <h3>{card.value}</h3>
                   </div>
-                ))}
+                </article>
+              ))}
+            </section>
+
+            <section className="admin-two-column">
+              <div className="admin-panel">
+                <div className="admin-panel-header">
+                  <div>
+                    <span>Hiệu quả kinh doanh</span>
+                    <h3>Doanh thu</h3>
+                  </div>
+
+                  <div className="admin-tabs">
+                    {["day", "month", "year"].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        className={revenueType === type ? "active" : ""}
+                        onClick={() => setRevenueType(type)}
+                      >
+                        {type === "day"
+                          ? "Ngày"
+                          : type === "month"
+                          ? "Tháng"
+                          : "Năm"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {revenueData.length === 0 ? (
+                  <p className="admin-muted">Chưa có dữ liệu doanh thu.</p>
+                ) : (
+                  <div className="admin-table-wrap">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>
+                            {revenueType === "day"
+                              ? "Ngày"
+                              : revenueType === "year"
+                              ? "Năm"
+                              : "Tháng"}
+                          </th>
+                          <th>Doanh thu sản phẩm</th>
+                          <th>Phí vận chuyển</th>
+                          <th>Tổng thu</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {revenueData.map((item) => (
+                          <tr key={item.period}>
+                            <td>{item.period}</td>
+                            <td>{formatPrice(item.revenue)}</td>
+                            <td>{formatPrice(item.shipping_fee)}</td>
+                            <td>
+                              <strong>
+                                {formatPrice(
+                                  item.total_collected ??
+                                    Number(item.revenue || 0) +
+                                      Number(item.shipping_fee || 0)
+                                )}
+                              </strong>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-            )}
-          </section>
-        </>
-      )}
+
+              <div className="admin-panel">
+                <div className="admin-panel-header">
+                  <div>
+                    <span>Hành vi người dùng</span>
+                    <h3>Thống kê truy cập</h3>
+                  </div>
+
+                  <div className="admin-tabs">
+                    {["day", "month", "year"].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        className={trafficType === type ? "active" : ""}
+                        onClick={() => setTrafficType(type)}
+                      >
+                        {type === "day"
+                          ? "Ngày"
+                          : type === "month"
+                          ? "Tháng"
+                          : "Năm"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {trafficData.length === 0 ? (
+                  <p className="admin-muted">
+                    Chưa có dữ liệu lượt truy cập.
+                  </p>
+                ) : (
+                  <div className="admin-table-wrap">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>
+                            {trafficType === "day"
+                              ? "Ngày"
+                              : trafficType === "year"
+                              ? "Năm"
+                              : "Tháng"}
+                          </th>
+                          <th>Lượt truy cập</th>
+                          <th>Lượt xem đơn hàng</th>
+                        </tr>
+                      </thead>
+
+                      <tbody>
+                        {trafficData.map((item) => (
+                          <tr key={item.period}>
+                            <td>{item.period}</td>
+                            <td>{formatNumber(item.website_visits)}</td>
+                            <td>{formatNumber(item.order_views)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="admin-panel admin-panel-wide">
+              <div className="admin-panel-header">
+                <div>
+                  <span>Phân tích sản phẩm</span>
+                  <h3>Thống kê lượt xem từng sản phẩm</h3>
+                  <p>Tổng hợp số lượt xem và số người xem của từng sản phẩm.</p>
+                </div>
+              </div>
+
+              {productViewStats.length === 0 ? (
+                <p className="admin-muted">Chưa có lượt xem sản phẩm nào.</p>
+              ) : (
+                <div className="admin-table-wrap">
+                  <table className="admin-table">
+                    <thead>
+                      <tr>
+                        <th>Mã sản phẩm</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Số lượt xem</th>
+                        <th>Số người xem</th>
+                        <th>Lần xem gần nhất</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {productViewStats.map((item) => (
+                        <tr key={item.product_id}>
+                          <td>
+                            <strong>SP{item.product_id}</strong>
+                          </td>
+                          <td>{item.product_name}</td>
+                          <td>{formatNumber(item.view_count)}</td>
+                          <td>{formatNumber(item.unique_viewers)}</td>
+                          <td>{formatDateTime(item.latest_view_at)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            <section className="admin-panel admin-panel-wide">
+              <div className="admin-panel-header">
+                <div>
+                  <span>Nhật ký hệ thống</span>
+                  <h3>Hoạt động gần đây</h3>
+                  <p>
+                    Hiển thị người xem, đối tượng và đường dẫn hoạt động gần nhất.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="admin-small-button"
+                  onClick={fetchDashboardData}
+                >
+                  Làm mới
+                </button>
+              </div>
+
+              {recentActivities.length === 0 ? (
+                <p className="admin-muted">Chưa có hoạt động nào.</p>
+              ) : (
+                <div className="admin-table-wrap">
+                  <table className="admin-table admin-table-wide">
+                    <thead>
+                      <tr>
+                        <th>Thời gian</th>
+                        <th>Hoạt động</th>
+                        <th>ID người xem</th>
+                        <th>Tên người xem</th>
+                        <th>Email</th>
+                        <th>Đối tượng</th>
+                        <th>Tên sản phẩm/đơn hàng</th>
+                        <th>Đường dẫn</th>
+                      </tr>
+                    </thead>
+
+                    <tbody>
+                      {recentActivities.map((activity) => {
+                        const objectInfo = getActivityObject(activity);
+
+                        return (
+                          <tr key={activity.id}>
+                            <td>
+                              {formatDateTime(
+                                activity.created_at || activity.date
+                              )}
+                            </td>
+                            <td>
+                              <span className="admin-activity-badge">
+                                {activity.activity_name ||
+                                  activity.event_type ||
+                                  "Hoạt động"}
+                              </span>
+                            </td>
+                            <td>
+                              <strong>{activity.user_id ?? "Khách"}</strong>
+                            </td>
+                            <td>
+                              {activity.customer_name ||
+                                "Khách chưa đăng nhập"}
+                            </td>
+                            <td>{activity.customer_email || "Chưa có"}</td>
+                            <td>{objectInfo.label}</td>
+                            <td>{objectInfo.name}</td>
+                            <td>{activity.page_path || "Chưa có"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            <section className="admin-panel admin-panel-wide">
+              <div className="admin-panel-header">
+                <div>
+                  <span>Đơn hàng mới nhất</span>
+                  <h3>Đơn hàng mới</h3>
+                </div>
+
+                <Link to="/admin/orders" className="admin-view-all">
+                  Xem tất cả
+                </Link>
+              </div>
+
+              {orders.length === 0 ? (
+                <p className="admin-muted">Chưa có đơn hàng nào.</p>
+              ) : (
+                <div className="admin-order-list">
+                  {orders.map((order) => (
+                    <article className="admin-order-item" key={order.id}>
+                      <div>
+                        <span>DH{order.id}</span>
+                        <h4>{order.shipping_name || "Chưa có khách hàng"}</h4>
+                        <p>{order.status || "Đang xử lý"}</p>
+                      </div>
+
+                      <strong>
+                        {formatPrice(
+                          order.total_amount ||
+                            order.total_price ||
+                            order.total
+                        )}
+                      </strong>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </main>
     </div>
   );
 }
-
-const styles = {
-  page: {
-    width: "100%",
-    minHeight: "100vh",
-    padding: "0 70px 40px",
-    backgroundColor: "#ffffff",
-    color: "#111827",
-    boxSizing: "border-box",
-  },
-
-  header: {
-    minHeight: "78px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: "20px",
-    flexWrap: "wrap",
-  },
-
-  logo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    textDecoration: "none",
-    color: "black",
-  },
-
-  logoBox: {
-    width: "42px",
-    height: "42px",
-    backgroundColor: "#1769ff",
-    color: "white",
-    borderRadius: "10px",
-    fontSize: "26px",
-    fontWeight: "800",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  logoText: {
-    margin: 0,
-    fontSize: "32px",
-    fontWeight: "800",
-  },
-
-  nav: {
-    display: "flex",
-    alignItems: "center",
-    gap: "22px",
-    flexWrap: "wrap",
-  },
-
-  navLink: {
-    color: "black",
-    textDecoration: "none",
-    fontWeight: "600",
-  },
-
-  activeLink: {
-    color: "#1769ff",
-    textDecoration: "none",
-    fontWeight: "700",
-    borderBottom: "3px solid #1769ff",
-    paddingBottom: "8px",
-  },
-
-  titleBox: {
-    background: "linear-gradient(120deg, #eef6ff, #ffffff)",
-    borderRadius: "12px",
-    padding: "35px 40px",
-    marginTop: "15px",
-    marginBottom: "22px",
-  },
-
-  title: {
-    margin: "0 0 8px",
-    fontSize: "34px",
-  },
-
-  subtitle: {
-    margin: 0,
-    color: "#6b7280",
-  },
-
-  statsGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "20px",
-    marginBottom: "24px",
-  },
-
-  statCard: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "14px",
-    padding: "22px",
-    display: "flex",
-    alignItems: "center",
-    gap: "16px",
-    boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
-    backgroundColor: "#ffffff",
-  },
-
-  icon: {
-    width: "54px",
-    height: "54px",
-    minWidth: "54px",
-    borderRadius: "14px",
-    backgroundColor: "#eef6ff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontSize: "28px",
-  },
-
-  statLabel: {
-    margin: "0 0 6px",
-    color: "#6b7280",
-    fontWeight: "600",
-  },
-
-  statValue: {
-    margin: 0,
-    fontSize: "26px",
-    overflowWrap: "anywhere",
-  },
-
-  contentGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(430px, 1fr))",
-    gap: "22px",
-  },
-
-  panel: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "14px",
-    padding: "24px",
-    boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
-    backgroundColor: "#ffffff",
-    overflow: "hidden",
-  },
-
-  panelHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "14px",
-    marginBottom: "18px",
-    flexWrap: "wrap",
-  },
-
-  panelTitle: {
-    margin: 0,
-  },
-
-  panelDescription: {
-    margin: "6px 0 0",
-    color: "#6b7280",
-    fontSize: "14px",
-  },
-
-  filterGroup: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-  },
-
-  filterBtn: {
-    padding: "9px 15px",
-    backgroundColor: "#e5e7eb",
-    color: "#111827",
-    border: "none",
-    borderRadius: "7px",
-    cursor: "pointer",
-    fontWeight: "700",
-  },
-
-  activeFilterBtn: {
-    backgroundColor: "#1769ff",
-    color: "#ffffff",
-  },
-
-  viewAll: {
-    color: "#1769ff",
-    fontWeight: "700",
-    textDecoration: "none",
-  },
-
-  refreshBtn: {
-    padding: "10px 16px",
-    backgroundColor: "#1769ff",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "8px",
-    cursor: "pointer",
-    fontWeight: "700",
-  },
-
-  activityBadge: {
-    display: "inline-block",
-    padding: "6px 10px",
-    borderRadius: "999px",
-    backgroundColor: "#eef6ff",
-    color: "#1769ff",
-    fontWeight: "700",
-    fontSize: "13px",
-  },
-
-  tableWrapper: {
-    width: "100%",
-    overflowX: "auto",
-  },
-
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    minWidth: "520px",
-  },
-
-  th: {
-    textAlign: "left",
-    padding: "12px",
-    backgroundColor: "#f3f8ff",
-    borderBottom: "1px solid #e5e7eb",
-    whiteSpace: "nowrap",
-  },
-
-  td: {
-    padding: "12px",
-    borderBottom: "1px solid #e5e7eb",
-    whiteSpace: "nowrap",
-  },
-
-  orderList: {
-    display: "grid",
-    gap: "12px",
-  },
-
-  orderItem: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "16px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "10px",
-    padding: "14px",
-    backgroundColor: "#f9fafb",
-  },
-
-  orderTitle: {
-    margin: "0 0 6px",
-  },
-
-  orderText: {
-    margin: "0 0 4px",
-    color: "#6b7280",
-  },
-
-  orderPrice: {
-    color: "#1769ff",
-    whiteSpace: "nowrap",
-  },
-
-  muted: {
-    color: "#6b7280",
-  },
-
-  emptyBox: {
-    textAlign: "center",
-    padding: "60px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-  },
-};
 
 export default AdminDashboardPage;

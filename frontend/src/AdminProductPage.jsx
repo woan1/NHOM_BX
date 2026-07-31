@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import api from "./api";
+import "./AdminProductPage.css";
 
 function AdminProductPage() {
   let currentUser = null;
@@ -463,11 +464,11 @@ function AdminProductPage() {
     String(currentUser.role).toUpperCase() !== "ADMIN"
   ) {
     return (
-      <div style={styles.page}>
+      <div className="admin-product-page">
         <h1>Bạn không có quyền truy cập trang Admin</h1>
 
         <Link to="/login">
-          <button style={styles.submitButton}>
+          <button className="admin-product-login-button">
             Đăng nhập admin
           </button>
         </Link>
@@ -476,37 +477,36 @@ function AdminProductPage() {
   }
 
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <Link to="/" style={styles.logo}>
-          <div style={styles.logoBox}>S</div>
+    <div className="admin-product-page">
+      <header className="admin-product-header">
+        <Link to="/" className="admin-product-logo">
+          <div className="admin-product-logo-box">S</div>
 
-          <h1 style={styles.logoText}>
+          <h1>
             Shop
-            <span style={{ color: "#1769ff" }}>
+            <span>
               Hub
             </span>
           </h1>
         </Link>
 
-        <nav style={styles.nav}>
-          <Link style={styles.navLink} to="/">
+        <nav className="admin-product-nav">
+          <Link to="/">
             Trang chủ
           </Link>
 
-          <Link style={styles.navLink} to="/products">
+          <Link to="/products">
             Sản phẩm
           </Link>
 
           <Link
-            style={styles.activeLink}
+            className="active"
             to="/admin/products"
           >
             Quản lý sản phẩm
           </Link>
 
           <Link
-            style={styles.navLink}
             to="/admin/dashboard"
           >
             Dashboard
@@ -514,34 +514,37 @@ function AdminProductPage() {
         </nav>
       </header>
 
-      <section style={styles.titleBox}>
-        <h1 style={styles.title}>
+      <section className="admin-product-hero">
+        <h1>
           Admin - Quản lý sản phẩm
         </h1>
 
-        <p style={styles.subtitle}>
+        <p>
           Thêm, sửa, xóa sản phẩm. Dữ liệu được lưu
           thật vào PostgreSQL.
         </p>
       </section>
 
-      <section style={styles.grid}>
+      <section className="admin-product-layout">
         <form
           onSubmit={handleSubmit}
-          style={styles.formBox}
+          className="admin-product-form"
         >
-          <h2>
+          <div className="admin-product-panel-heading">
+            <span>{editingId ? "Chỉnh sửa sản phẩm" : "Sản phẩm mới"}</span>
+            <h2>
             {editingId
               ? "Cập nhật sản phẩm"
               : "Thêm sản phẩm mới"}
           </h2>
+          </div>
 
-          <label style={styles.label}>
+          <label>
             Tên sản phẩm
           </label>
 
           <input
-            style={styles.input}
+            className="admin-product-input"
             name="name"
             placeholder="Ví dụ: iPad Air M2"
             value={formData.name}
@@ -549,12 +552,12 @@ function AdminProductPage() {
             disabled={isSubmitting}
           />
 
-          <label style={styles.label}>
+          <label>
             Danh mục
           </label>
 
           <select
-            style={styles.input}
+            className="admin-product-input"
             name="category_id"
             value={formData.category_id}
             onChange={handleChange}
@@ -574,12 +577,12 @@ function AdminProductPage() {
             ))}
           </select>
 
-          <label style={styles.label}>
+          <label>
             Giá sản phẩm
           </label>
 
           <input
-            style={styles.input}
+            className="admin-product-input"
             name="price"
             type="number"
             min="1"
@@ -589,12 +592,12 @@ function AdminProductPage() {
             disabled={isSubmitting}
           />
 
-          <label style={styles.label}>
+          <label>
             Số lượng kho
           </label>
 
           <input
-            style={styles.input}
+            className="admin-product-input"
             name="stock"
             type="number"
             min="0"
@@ -605,12 +608,12 @@ function AdminProductPage() {
             disabled={isSubmitting}
           />
 
-          <label style={styles.label}>
+          <label>
             Ảnh sản phẩm
           </label>
 
           <input
-            style={styles.input}
+            className="admin-product-input"
             type="file"
             accept="image/*"
             onChange={handleImageChange}
@@ -618,11 +621,11 @@ function AdminProductPage() {
           />
 
           {(previewImage || formData.image) && (
-            <div style={styles.previewBox}>
+            <div className="admin-product-preview">
               <img
                 src={previewImage || formData.image}
                 alt="Xem trước sản phẩm"
-                style={styles.previewImage}
+                className="admin-product-preview-image"
                 onError={(event) => {
                   event.currentTarget.src =
                     "https://dummyimage.com/300x200/eef6ff/1769ff&text=ShopHub";
@@ -631,12 +634,12 @@ function AdminProductPage() {
             </div>
           )}
 
-          <label style={styles.label}>
+          <label>
             Mô tả sản phẩm
           </label>
 
           <textarea
-            style={styles.textarea}
+            className="admin-product-textarea"
             name="description"
             placeholder="Nhập mô tả sản phẩm"
             value={formData.description}
@@ -646,13 +649,7 @@ function AdminProductPage() {
 
           <button
             type="submit"
-            style={{
-              ...styles.submitButton,
-              opacity: isSubmitting ? 0.65 : 1,
-              cursor: isSubmitting
-                ? "not-allowed"
-                : "pointer",
-            }}
+            className="admin-product-submit-button"
             disabled={isSubmitting}
           >
             {isSubmitting
@@ -666,7 +663,7 @@ function AdminProductPage() {
             <button
               type="button"
               onClick={resetForm}
-              style={styles.cancelBtn}
+              className="admin-product-cancel-button"
               disabled={isSubmitting}
             >
               Hủy sửa
@@ -674,17 +671,19 @@ function AdminProductPage() {
           )}
         </form>
 
-        <div style={styles.listBox}>
-          <h2>Danh sách sản phẩm</h2>
+        <div className="admin-product-list-panel">
+          <div className="admin-product-list-heading">
+            <div>
+              <span>Kho sản phẩm</span>
+              <h2>Danh sách sản phẩm</h2>
+            </div>
 
-          <p>
-            Tổng sản phẩm:{" "}
-            <b>{products.length}</b>
-          </p>
+            <strong>{products.length} sản phẩm</strong>
+          </div>
 
-          <div style={styles.productList}>
+          <div className="admin-product-list">
             {products.length === 0 && (
-              <p style={styles.emptyText}>
+              <p className="admin-product-empty">
                 Chưa có sản phẩm trong cơ sở dữ liệu.
               </p>
             )}
@@ -692,13 +691,13 @@ function AdminProductPage() {
             {products.map((product) => (
               <div
                 key={product.id}
-                style={styles.productItem}
+                className="admin-product-item"
               >
-                <div style={styles.productImageBox}>
+                <div className="admin-product-image-box">
                   <img
                     src={product.image}
                     alt={product.name}
-                    style={styles.productImage}
+                    className="admin-product-image"
                     onError={(event) => {
                       event.currentTarget.src =
                         "https://dummyimage.com/300x200/eef6ff/1769ff&text=ShopHub";
@@ -706,32 +705,48 @@ function AdminProductPage() {
                   />
                 </div>
 
-                <div style={{ flex: 1 }}>
-                  <h3 style={styles.productName}>
+                <div className="admin-product-info">
+                  <h3 className="admin-product-name">
                     {product.name}
                   </h3>
 
-                  <p style={styles.productText}>
+                  <p className="admin-product-text">
                     Danh mục:{" "}
                     {getCategoryName(product)}
                   </p>
 
-                  <p style={styles.productPrice}>
+                  <p className="admin-product-price">
                     {formatPrice(product.price)}
                   </p>
 
-                  <p style={styles.productText}>
+                  <p className="admin-product-text">
                     Kho: {product.stock} sản phẩm
                   </p>
+
+                  <span
+                    className={`admin-product-stock ${
+                      Number(product.stock || 0) <= 0
+                        ? "out"
+                        : Number(product.stock || 0) <= 10
+                        ? "low"
+                        : "available"
+                    }`}
+                  >
+                    {Number(product.stock || 0) <= 0
+                      ? "Hết hàng"
+                      : Number(product.stock || 0) <= 10
+                      ? "Sắp hết"
+                      : "Còn hàng"}
+                  </span>
                 </div>
 
-                <div style={styles.actions}>
+                <div className="admin-product-actions">
                   <button
                     type="button"
                     onClick={() =>
                       handleEdit(product)
                     }
-                    style={styles.editButton}
+                    className="admin-product-edit-button"
                   >
                     Sửa
                   </button>
@@ -741,7 +756,7 @@ function AdminProductPage() {
                     onClick={() =>
                       handleDelete(product.id)
                     }
-                    style={styles.deleteButton}
+                    className="admin-product-delete-button"
                   >
                     Xóa
                   </button>
@@ -755,262 +770,5 @@ function AdminProductPage() {
   );
 }
 
-const styles = {
-  page: {
-    width: "100%",
-    minHeight: "100vh",
-    padding: "0 115px 40px",
-    backgroundColor: "#ffffff",
-    color: "#111827",
-    boxSizing: "border-box",
-  },
-
-  header: {
-    height: "78px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  logo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    textDecoration: "none",
-    color: "black",
-  },
-
-  logoBox: {
-    width: "42px",
-    height: "42px",
-    backgroundColor: "#1769ff",
-    color: "white",
-    borderRadius: "10px",
-    fontSize: "26px",
-    fontWeight: "800",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  logoText: {
-    margin: 0,
-    fontSize: "32px",
-    fontWeight: "800",
-  },
-
-  nav: {
-    display: "flex",
-    alignItems: "center",
-    gap: "28px",
-  },
-
-  navLink: {
-    color: "black",
-    textDecoration: "none",
-    fontWeight: "600",
-  },
-
-  activeLink: {
-    color: "#1769ff",
-    textDecoration: "none",
-    fontWeight: "700",
-    borderBottom: "3px solid #1769ff",
-    paddingBottom: "24px",
-  },
-
-  titleBox: {
-    background:
-      "linear-gradient(120deg, #eef6ff, #ffffff)",
-    borderRadius: "12px",
-    padding: "35px 40px",
-    marginTop: "15px",
-    marginBottom: "20px",
-  },
-
-  title: {
-    margin: "0 0 8px",
-    fontSize: "34px",
-  },
-
-  subtitle: {
-    margin: 0,
-    color: "#6b7280",
-  },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "420px 1fr",
-    gap: "25px",
-    alignItems: "start",
-  },
-
-  formBox: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    padding: "25px",
-    boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
-  },
-
-  label: {
-    display: "block",
-    marginTop: "14px",
-    marginBottom: "6px",
-    fontWeight: "700",
-  },
-
-  input: {
-    width: "100%",
-    height: "44px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    padding: "0 12px",
-    fontSize: "15px",
-    boxSizing: "border-box",
-  },
-
-  textarea: {
-    width: "100%",
-    height: "90px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    padding: "12px",
-    fontSize: "15px",
-    resize: "none",
-    boxSizing: "border-box",
-  },
-
-  previewBox: {
-    marginTop: "12px",
-    height: "150px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "10px",
-    backgroundColor: "#f3f8ff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  previewImage: {
-    maxWidth: "100%",
-    maxHeight: "100%",
-    objectFit: "contain",
-    padding: "10px",
-    boxSizing: "border-box",
-  },
-
-  submitButton: {
-    width: "100%",
-    height: "46px",
-    marginTop: "18px",
-    backgroundColor: "#1769ff",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontWeight: "800",
-    cursor: "pointer",
-  },
-
-  cancelBtn: {
-    width: "100%",
-    height: "46px",
-    marginTop: "10px",
-    backgroundColor: "#111827",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontWeight: "800",
-    cursor: "pointer",
-  },
-
-  listBox: {
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-    padding: "25px",
-    boxShadow: "0 8px 22px rgba(0,0,0,0.04)",
-  },
-
-  productList: {
-    display: "grid",
-    gap: "15px",
-    marginTop: "15px",
-  },
-
-  productItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "16px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "10px",
-    padding: "14px",
-  },
-
-  productImageBox: {
-    width: "90px",
-    height: "90px",
-    backgroundColor: "#f3f8ff",
-    borderRadius: "10px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-
-  productImage: {
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    padding: "8px",
-    boxSizing: "border-box",
-  },
-
-  productName: {
-    margin: "0 0 6px",
-    fontSize: "17px",
-  },
-
-  productText: {
-    margin: "4px 0",
-    color: "#6b7280",
-  },
-
-  productPrice: {
-    margin: "4px 0",
-    color: "#1769ff",
-    fontWeight: "800",
-  },
-
-  actions: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-  },
-
-  editButton: {
-    padding: "9px 16px",
-    backgroundColor: "#1769ff",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "700",
-  },
-
-  deleteButton: {
-    padding: "9px 16px",
-    backgroundColor: "#ef4444",
-    color: "white",
-    border: "none",
-    borderRadius: "6px",
-    cursor: "pointer",
-    fontWeight: "700",
-  },
-
-  emptyText: {
-    color: "#6b7280",
-    textAlign: "center",
-    padding: "30px 0",
-  },
-};
 
 export default AdminProductPage;

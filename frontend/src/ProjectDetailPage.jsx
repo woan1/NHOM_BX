@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import api from "./api";
+import "./ProjectDetailPage.css";
 import { useCart } from "./CartContext";
 import {
   recordProductView,
@@ -315,7 +316,7 @@ function ProjectDetailPage() {
 
   if (loading) {
     return (
-      <div style={styles.page}>
+      <div className="product-detail-page">
         <Header
           currentUser={
             currentUser
@@ -326,7 +327,7 @@ function ProjectDetailPage() {
         />
 
         <div
-          style={styles.emptyBox}
+          className="product-detail-state"
         >
           <h2>
             Đang tải chi tiết
@@ -339,7 +340,7 @@ function ProjectDetailPage() {
 
   if (!product) {
     return (
-      <div style={styles.page}>
+      <div className="product-detail-page">
         <Header
           currentUser={
             currentUser
@@ -350,7 +351,7 @@ function ProjectDetailPage() {
         />
 
         <div
-          style={styles.emptyBox}
+          className="product-detail-state"
         >
           <h1>
             Không tìm thấy sản
@@ -364,9 +365,7 @@ function ProjectDetailPage() {
 
           <button
             type="button"
-            style={
-              styles.backBtn
-            }
+            className="product-detail-back-button"
             onClick={() =>
               navigate(
                 "/products"
@@ -388,7 +387,7 @@ function ProjectDetailPage() {
     stock <= 0;
 
   return (
-    <div style={styles.page}>
+    <div className="product-detail-page">
       <Header
         currentUser={
           currentUser
@@ -399,15 +398,12 @@ function ProjectDetailPage() {
       />
 
       <section
-        style={
-          styles.detailBox
-        }
+        className="product-detail-card"
       >
-        <div
-          style={
-            styles.imageBox
-          }
-        >
+        <div className="product-detail-image-panel">
+          <span className="product-detail-image-badge">
+            ShopHub Authentic
+          </span>
           <img
             src={getImageUrl(
               product
@@ -416,24 +412,19 @@ function ProjectDetailPage() {
               product.name ||
               "Sản phẩm ShopHub"
             }
-            style={
-              styles.productImg
-            }
+            className="product-detail-image"
             onError={
               handleImageError
             }
           />
         </div>
 
-        <div
-          style={
-            styles.infoBox
-          }
-        >
+        <div className="product-detail-info">
+          <span className="product-detail-kicker">
+            Sản phẩm chính hãng
+          </span>
           <span
-            style={
-              styles.category
-            }
+            className="product-detail-category"
           >
             {getCategoryName(
               product
@@ -441,26 +432,20 @@ function ProjectDetailPage() {
           </span>
 
           <h1
-            style={
-              styles.productName
-            }
+            className="product-detail-name"
           >
             {product.name}
           </h1>
 
           <p
-            style={
-              styles.description
-            }
+            className="product-detail-description"
           >
             {product.description ||
               "Chưa có mô tả sản phẩm."}
           </p>
 
           <p
-            style={
-              styles.price
-            }
+            className="product-detail-price"
           >
             {formatPrice(
               product.price
@@ -468,34 +453,18 @@ function ProjectDetailPage() {
           </p>
 
           <p
-            style={
-              styles.stock
-            }
+            className="product-detail-stock-text"
           >
             Kho: {stock} sản
             phẩm
           </p>
 
           <div
-            style={
-              styles.actions
-            }
+            className="product-detail-actions"
           >
             <button
               type="button"
-              style={{
-                ...styles.cartBtn,
-
-                opacity:
-                  outOfStock
-                    ? 0.6
-                    : 1,
-
-                cursor:
-                  outOfStock
-                    ? "not-allowed"
-                    : "pointer",
-              }}
+              className="product-detail-cart-button"
               onClick={
                 handleAddToCart
               }
@@ -510,9 +479,7 @@ function ProjectDetailPage() {
 
             <button
               type="button"
-              style={
-                styles.backBtn
-              }
+              className="product-detail-back-button"
               onClick={() =>
                 navigate(
                   "/products"
@@ -540,31 +507,24 @@ function Header({
 
   return (
     <header
-      style={styles.header}
+      className="product-detail-header"
     >
       <Link
         to="/"
-        style={styles.logo}
+        className="product-detail-logo"
       >
         <div
-          style={
-            styles.logoBox
-          }
+          className="product-detail-logo-box"
         >
           S
         </div>
 
         <h1
-          style={
-            styles.logoText
-          }
+          className="product-detail-logo-text"
         >
           Shop
           <span
-            style={{
-              color:
-                "#1769ff",
-            }}
+            className="product-detail-logo-highlight"
           >
             Hub
           </span>
@@ -572,30 +532,24 @@ function Header({
       </Link>
 
       <nav
-        style={styles.nav}
+        className="product-detail-nav"
       >
         <Link
-          style={
-            styles.navLink
-          }
+          className="product-detail-nav-link"
           to="/"
         >
           Trang chủ
         </Link>
 
         <Link
-          style={
-            styles.activeLink
-          }
+          className="product-detail-nav-link active"
           to="/products"
         >
           Sản phẩm
         </Link>
 
         <Link
-          style={
-            styles.navLink
-          }
+          className="product-detail-nav-link"
           to="/cart"
         >
           Giỏ hàng 🛒 (
@@ -603,9 +557,7 @@ function Header({
         </Link>
 
         <Link
-          style={
-            styles.navLink
-          }
+          className="product-detail-nav-link"
           to="/orders"
         >
           Đơn hàng 🧾
@@ -613,9 +565,7 @@ function Header({
 
         {isAdmin && (
           <Link
-            style={
-              styles.navLink
-            }
+            className="product-detail-nav-link"
             to="/admin/products"
           >
             Admin
@@ -626,197 +576,5 @@ function Header({
   );
 }
 
-const styles = {
-  page: {
-    width: "100%",
-    minHeight: "100vh",
-    padding:
-      "0 115px 40px",
-    backgroundColor:
-      "#ffffff",
-    color: "#111827",
-    boxSizing:
-      "border-box",
-  },
-
-  header: {
-    height: "78px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent:
-      "space-between",
-  },
-
-  logo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    textDecoration: "none",
-    color: "black",
-  },
-
-  logoBox: {
-    width: "42px",
-    height: "42px",
-    backgroundColor:
-      "#1769ff",
-    color: "white",
-    borderRadius: "10px",
-    fontSize: "26px",
-    fontWeight: "800",
-    display: "flex",
-    alignItems: "center",
-    justifyContent:
-      "center",
-  },
-
-  logoText: {
-    margin: 0,
-    fontSize: "32px",
-    fontWeight: "800",
-  },
-
-  nav: {
-    display: "flex",
-    alignItems: "center",
-    gap: "28px",
-  },
-
-  navLink: {
-    color: "black",
-    textDecoration: "none",
-    fontWeight: "600",
-  },
-
-  activeLink: {
-    color: "#1769ff",
-    textDecoration: "none",
-    fontWeight: "700",
-    borderBottom:
-      "3px solid #1769ff",
-    paddingBottom: "24px",
-  },
-
-  detailBox: {
-    display: "grid",
-    gridTemplateColumns:
-      "1fr 1fr",
-    gap: "45px",
-    marginTop: "80px",
-    border:
-      "1px solid #e5e7eb",
-    borderRadius: "14px",
-    padding: "35px",
-    boxShadow:
-      "0 8px 22px rgba(0,0,0,0.04)",
-  },
-
-  imageBox: {
-    backgroundColor:
-      "#f3f8ff",
-    borderRadius: "12px",
-    height: "420px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent:
-      "center",
-  },
-
-  productImg: {
-    width: "100%",
-    height: "100%",
-    objectFit: "contain",
-    padding: "25px",
-    boxSizing:
-      "border-box",
-  },
-
-  infoBox: {
-    display: "flex",
-    flexDirection:
-      "column",
-    justifyContent:
-      "center",
-  },
-
-  category: {
-    display:
-      "inline-block",
-    width: "fit-content",
-    backgroundColor:
-      "#dbeafe",
-    color: "#1769ff",
-    padding: "7px 15px",
-    borderRadius: "20px",
-    fontSize: "14px",
-    fontWeight: "700",
-    marginBottom: "15px",
-  },
-
-  productName: {
-    fontSize: "38px",
-    margin:
-      "0 0 15px",
-  },
-
-  description: {
-    fontSize: "17px",
-    lineHeight: "1.6",
-    color: "#6b7280",
-    marginBottom: "20px",
-  },
-
-  price: {
-    color: "#1769ff",
-    fontSize: "30px",
-    fontWeight: "800",
-    marginBottom: "10px",
-  },
-
-  stock: {
-    color: "#4b5563",
-    fontSize: "16px",
-    marginBottom: "25px",
-  },
-
-  actions: {
-    display: "flex",
-    gap: "15px",
-    flexWrap: "wrap",
-  },
-
-  cartBtn: {
-    backgroundColor:
-      "#1769ff",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    padding: "14px 24px",
-    fontWeight: "700",
-    fontSize: "16px",
-  },
-
-  backBtn: {
-    backgroundColor:
-      "#111827",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    padding: "14px 24px",
-    fontWeight: "700",
-    cursor: "pointer",
-    fontSize: "16px",
-  },
-
-  emptyBox: {
-    marginTop: "100px",
-    textAlign: "center",
-    padding: "60px",
-    border:
-      "1px solid #e5e7eb",
-    borderRadius: "12px",
-    color: "#111827",
-  },
-};
 
 export default ProjectDetailPage;

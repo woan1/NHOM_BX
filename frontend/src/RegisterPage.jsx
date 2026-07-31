@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import api from "./api";
+import "./RegisterPage.css";
 
 function RegisterPage() {
   const navigate = useNavigate();
@@ -13,18 +14,62 @@ function RegisterPage() {
   });
 
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
+  const passwordStrength = useMemo(() => {
+    const password = formData.password;
 
-    setFormData((prev) => ({
-      ...prev,
+    if (!password) {
+      return {
+        label: "Chưa nhập mật khẩu",
+        level: 0,
+        className: "empty",
+      };
+    }
+
+    let score = 0;
+
+    if (password.length >= 6) score += 1;
+    if (password.length >= 10) score += 1;
+    if (/[A-Z]/.test(password)) score += 1;
+    if (/[0-9]/.test(password)) score += 1;
+    if (/[^A-Za-z0-9]/.test(password)) score += 1;
+
+    if (score <= 1) {
+      return {
+        label: "Mật khẩu yếu",
+        level: 1,
+        className: "weak",
+      };
+    }
+
+    if (score <= 3) {
+      return {
+        label: "Mật khẩu trung bình",
+        level: 2,
+        className: "medium",
+      };
+    }
+
+    return {
+      label: "Mật khẩu mạnh",
+      level: 3,
+      className: "strong",
+    };
+  }, [formData.password]);
+
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+
+    setFormData((previousData) => ({
+      ...previousData,
       [name]: value,
     }));
   };
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
+  const handleRegister = async (event) => {
+    event.preventDefault();
 
     const fullName = formData.fullName.trim();
     const email = formData.email.trim().toLowerCase();
@@ -43,6 +88,10 @@ function RegisterPage() {
 
     if (password !== confirmPassword) {
       alert("Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
+    if (loading) {
       return;
     }
 
@@ -93,241 +142,231 @@ function RegisterPage() {
   };
 
   return (
-    <div style={styles.page}>
-      <header style={styles.header}>
-        <Link to="/" style={styles.logo}>
-          <div style={styles.logoBox}>S</div>
+    <div className="register-page">
+      <Header />
 
-          <h1 style={styles.logoText}>
-            Shop<span style={{ color: "#1769ff" }}>Hub</span>
-          </h1>
-        </Link>
+      <main className="register-main">
+        <section className="register-showcase">
+          <div className="register-showcase-content">
+            <span className="register-kicker">Tham gia ShopHub</span>
 
-        <nav style={styles.nav}>
-          <Link style={styles.navLink} to="/">
-            Trang chủ
-          </Link>
+            <h2>
+              Tạo tài khoản
+              <br />
+              <span>mua sắm thông minh hơn</span>
+            </h2>
 
-          <Link style={styles.navLink} to="/products">
-            Sản phẩm
-          </Link>
+            <p>
+              Đăng ký để lưu thông tin, quản lý đơn hàng và nhận các ưu đãi dành
+              riêng cho thành viên ShopHub.
+            </p>
 
-          <Link style={styles.navLink} to="/cart">
-            Giỏ hàng 🛒
-          </Link>
+            <div className="register-benefits">
+              <article>
+                <span>🎁</span>
+                <div>
+                  <strong>Ưu đãi thành viên</strong>
+                  <small>Nhận mã giảm giá và chương trình riêng</small>
+                </div>
+              </article>
 
-          <Link style={styles.navLink} to="/login">
-            Đăng nhập
-          </Link>
+              <article>
+                <span>📦</span>
+                <div>
+                  <strong>Quản lý đơn hàng</strong>
+                  <small>Theo dõi trạng thái đơn dễ dàng</small>
+                </div>
+              </article>
 
-          <Link style={styles.activeLink} to="/register">
-            Đăng ký
-          </Link>
-        </nav>
-      </header>
+              <article>
+                <span>⚡</span>
+                <div>
+                  <strong>Thanh toán nhanh</strong>
+                  <small>Lưu thông tin để mua sắm thuận tiện</small>
+                </div>
+              </article>
+            </div>
+          </div>
 
-      <div style={styles.authWrapper}>
-        <form onSubmit={handleRegister} style={styles.formBox}>
-          <h1 style={styles.title}>Đăng ký tài khoản</h1>
+          <div className="register-decoration">
+            <div className="register-orb orb-one" />
+            <div className="register-orb orb-two" />
 
-          <p style={styles.subtitle}>
-            Tạo tài khoản ShopHub để mua hàng và theo dõi đơn hàng.
-          </p>
+            <div className="register-device-card">
+              <span>ShopHub Member</span>
+              <strong>Bắt đầu hành trình công nghệ</strong>
+              <small>Chính hãng · Giao nhanh · Hỗ trợ tận tâm</small>
+            </div>
+          </div>
+        </section>
 
-          <label style={styles.label}>Họ và tên</label>
+        <section className="register-panel">
+          <form className="register-card" onSubmit={handleRegister}>
+            <div className="register-card-heading">
+              <span>Tạo tài khoản mới</span>
+              <h1>Đăng ký tài khoản</h1>
+              <p>Tạo tài khoản ShopHub để mua hàng và theo dõi đơn hàng.</p>
+            </div>
 
-          <input
-            style={styles.input}
-            type="text"
-            name="fullName"
-            placeholder="Nhập họ và tên"
-            value={formData.fullName}
-            onChange={handleChange}
-            disabled={loading}
-          />
+            <label htmlFor="register-name">Họ và tên</label>
+            <div className="register-input-wrap">
+              <span>👤</span>
+              <input
+                id="register-name"
+                type="text"
+                name="fullName"
+                placeholder="Nhập họ và tên"
+                value={formData.fullName}
+                onChange={handleChange}
+                disabled={loading}
+                autoComplete="name"
+              />
+            </div>
 
-          <label style={styles.label}>Email</label>
+            <label htmlFor="register-email">Email</label>
+            <div className="register-input-wrap">
+              <span>✉</span>
+              <input
+                id="register-email"
+                type="email"
+                name="email"
+                placeholder="Nhập email"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={loading}
+                autoComplete="email"
+              />
+            </div>
 
-          <input
-            style={styles.input}
-            type="email"
-            name="email"
-            placeholder="Nhập email"
-            value={formData.email}
-            onChange={handleChange}
-            disabled={loading}
-          />
+            <label htmlFor="register-password">Mật khẩu</label>
+            <div className="register-input-wrap password-wrap">
+              <span>🔒</span>
+              <input
+                id="register-password"
+                type={showPassword ? "text" : "password"}
+                name="password"
+                placeholder="Nhập mật khẩu"
+                value={formData.password}
+                onChange={handleChange}
+                disabled={loading}
+                autoComplete="new-password"
+              />
 
-          <label style={styles.label}>Mật khẩu</label>
+              <button
+                type="button"
+                className="register-password-toggle"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+              >
+                {showPassword ? "Ẩn" : "Hiện"}
+              </button>
+            </div>
 
-          <input
-            style={styles.input}
-            type="password"
-            name="password"
-            placeholder="Nhập mật khẩu"
-            value={formData.password}
-            onChange={handleChange}
-            disabled={loading}
-          />
+            <div className={`password-strength ${passwordStrength.className}`}>
+              <div className="strength-bars">
+                {[1, 2, 3].map((level) => (
+                  <span
+                    key={level}
+                    className={passwordStrength.level >= level ? "active" : ""}
+                  />
+                ))}
+              </div>
+              <small>{passwordStrength.label}</small>
+            </div>
 
-          <label style={styles.label}>Xác nhận mật khẩu</label>
+            <label htmlFor="register-confirm-password">
+              Xác nhận mật khẩu
+            </label>
+            <div className="register-input-wrap password-wrap">
+              <span>🔐</span>
+              <input
+                id="register-confirm-password"
+                type={showConfirmPassword ? "text" : "password"}
+                name="confirmPassword"
+                placeholder="Nhập lại mật khẩu"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                disabled={loading}
+                autoComplete="new-password"
+              />
 
-          <input
-            style={styles.input}
-            type="password"
-            name="confirmPassword"
-            placeholder="Nhập lại mật khẩu"
-            value={formData.confirmPassword}
-            onChange={handleChange}
-            disabled={loading}
-          />
+              <button
+                type="button"
+                className="register-password-toggle"
+                onClick={() =>
+                  setShowConfirmPassword((value) => !value)
+                }
+                aria-label={
+                  showConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"
+                }
+              >
+                {showConfirmPassword ? "Ẩn" : "Hiện"}
+              </button>
+            </div>
 
-          <button
-            type="submit"
-            style={{
-              ...styles.submitButton,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-            disabled={loading}
-          >
-            {loading ? "Đang đăng ký..." : "Đăng ký"}
-          </button>
+            {formData.confirmPassword && (
+              <p
+                className={`password-match ${
+                  formData.password === formData.confirmPassword
+                    ? "matched"
+                    : "not-matched"
+                }`}
+              >
+                {formData.password === formData.confirmPassword
+                  ? "✓ Mật khẩu đã khớp"
+                  : "✕ Mật khẩu chưa khớp"}
+              </p>
+            )}
 
-          <p style={styles.bottomText}>
-            Đã có tài khoản? <Link to="/login">Đăng nhập ngay</Link>
-          </p>
-        </form>
-      </div>
+            <label className="register-policy">
+              <input type="checkbox" defaultChecked />
+              <span>
+                Tôi đồng ý với điều khoản sử dụng và chính sách bảo mật của
+                ShopHub.
+              </span>
+            </label>
+
+            <button
+              type="submit"
+              className="register-submit-button"
+              disabled={loading}
+            >
+              {loading ? "Đang đăng ký..." : "Đăng ký"}
+            </button>
+
+            <p className="register-bottom-text">
+              Đã có tài khoản? <Link to="/login">Đăng nhập ngay</Link>
+            </p>
+          </form>
+        </section>
+      </main>
     </div>
   );
 }
 
-const styles = {
-  page: {
-    width: "100%",
-    minHeight: "100vh",
-    padding: "0 115px 40px",
-    backgroundColor: "#ffffff",
-    color: "#111827",
-    boxSizing: "border-box",
-  },
+function Header() {
+  return (
+    <header className="register-header">
+      <div className="register-header-inner">
+        <Link to="/" className="register-logo">
+          <div className="register-logo-box">S</div>
+          <h1>
+            Shop<span>Hub</span>
+          </h1>
+        </Link>
 
-  header: {
-    height: "78px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  logo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    textDecoration: "none",
-    color: "black",
-  },
-
-  logoBox: {
-    width: "42px",
-    height: "42px",
-    backgroundColor: "#1769ff",
-    color: "white",
-    borderRadius: "10px",
-    fontSize: "26px",
-    fontWeight: "800",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  logoText: {
-    margin: 0,
-    fontSize: "32px",
-    fontWeight: "800",
-  },
-
-  nav: {
-    display: "flex",
-    alignItems: "center",
-    gap: "28px",
-  },
-
-  navLink: {
-    color: "black",
-    textDecoration: "none",
-    fontWeight: "600",
-  },
-
-  activeLink: {
-    color: "#1769ff",
-    textDecoration: "none",
-    fontWeight: "700",
-    borderBottom: "3px solid #1769ff",
-    paddingBottom: "24px",
-  },
-
-  authWrapper: {
-    minHeight: "calc(100vh - 100px)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  formBox: {
-    width: "430px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "14px",
-    padding: "32px",
-    boxShadow: "0 8px 22px rgba(0,0,0,0.05)",
-    boxSizing: "border-box",
-  },
-
-  title: {
-    textAlign: "center",
-    margin: "0 0 8px",
-    fontSize: "30px",
-  },
-
-  subtitle: {
-    textAlign: "center",
-    color: "#6b7280",
-    marginBottom: "22px",
-  },
-
-  label: {
-    display: "block",
-    marginTop: "14px",
-    marginBottom: "6px",
-    fontWeight: "700",
-  },
-
-  input: {
-    width: "100%",
-    height: "46px",
-    border: "1px solid #e5e7eb",
-    borderRadius: "8px",
-    padding: "0 14px",
-    fontSize: "15px",
-    boxSizing: "border-box",
-  },
-
-  submitButton: {
-    width: "100%",
-    height: "48px",
-    marginTop: "22px",
-    backgroundColor: "#1769ff",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    fontWeight: "800",
-  },
-
-  bottomText: {
-    textAlign: "center",
-    marginTop: "18px",
-    color: "#6b7280",
-  },
-};
+        <nav className="register-nav">
+          <Link to="/">Trang chủ</Link>
+          <Link to="/products">Sản phẩm</Link>
+          <Link to="/cart">Giỏ hàng</Link>
+          <Link to="/login">Đăng nhập</Link>
+          <Link className="active" to="/register">
+            Đăng ký
+          </Link>
+        </nav>
+      </div>
+    </header>
+  );
+}
 
 export default RegisterPage;
