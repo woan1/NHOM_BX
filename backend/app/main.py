@@ -1175,7 +1175,7 @@ def create_order(
         user_id=(
             user.id
             if user
-            else order_data.user_id
+            else None
         ),
 
         user_email=(
