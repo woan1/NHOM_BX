@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "./api";
 import "./AdminProductPage.css";
 
@@ -16,6 +16,7 @@ function AdminProductPage() {
   const [categories, setCategories] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState("");
 
   const [imageFile, setImageFile] = useState(null);
   const [previewImage, setPreviewImage] = useState("");
@@ -459,6 +460,24 @@ function AdminProductPage() {
     return category?.name || product.category_id || "Chưa có";
   };
 
+  const filteredProducts = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase();
+
+    if (!keyword) {
+      return products;
+    }
+
+    return products.filter((product) => {
+      const productName = String(product.name || "").toLowerCase();
+      const categoryName = String(getCategoryName(product) || "").toLowerCase();
+
+      return (
+        productName.includes(keyword) ||
+        categoryName.includes(keyword)
+      );
+    });
+  }, [products, searchKeyword, categories]);
+
   if (
     !currentUser ||
     String(currentUser.role).toUpperCase() !== "ADMIN"
@@ -678,7 +697,34 @@ function AdminProductPage() {
               <h2>Danh sách sản phẩm</h2>
             </div>
 
-            <strong>{products.length} sản phẩm</strong>
+            <strong>
+              {searchKeyword.trim()
+                ? `${filteredProducts.length}/${products.length} sản phẩm`
+                : `${products.length} sản phẩm`}
+            </strong>
+          </div>
+
+          <div className="admin-product-search-box">
+            <span className="admin-product-search-icon">🔎</span>
+
+            <input
+              type="text"
+              className="admin-product-search-input"
+              placeholder="Tìm sản phẩm theo tên hoặc danh mục..."
+              value={searchKeyword}
+              onChange={(event) => setSearchKeyword(event.target.value)}
+            />
+
+            {searchKeyword && (
+              <button
+                type="button"
+                className="admin-product-search-clear"
+                onClick={() => setSearchKeyword("")}
+                aria-label="Xóa nội dung tìm kiếm"
+              >
+                ×
+              </button>
+            )}
           </div>
 
           <div className="admin-product-list">
@@ -688,7 +734,13 @@ function AdminProductPage() {
               </p>
             )}
 
-            {products.map((product) => (
+            {products.length > 0 && filteredProducts.length === 0 && (
+              <p className="admin-product-empty">
+                Không tìm thấy sản phẩm phù hợp với "{searchKeyword}".
+              </p>
+            )}
+
+            {filteredProducts.map((product) => (
               <div
                 key={product.id}
                 className="admin-product-item"
