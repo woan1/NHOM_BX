@@ -17,6 +17,7 @@ function AdminProductPage() {
   const [editingId, setEditingId] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
 
   const [imageFile, setImageFile] = useState(null);
   const [previewImage, setPreviewImage] = useState("");
@@ -463,20 +464,22 @@ function AdminProductPage() {
   const filteredProducts = useMemo(() => {
     const keyword = searchKeyword.trim().toLowerCase();
 
-    if (!keyword) {
-      return products;
-    }
-
     return products.filter((product) => {
       const productName = String(product.name || "").toLowerCase();
       const categoryName = String(getCategoryName(product) || "").toLowerCase();
 
-      return (
+      const matchesKeyword =
+        !keyword ||
         productName.includes(keyword) ||
-        categoryName.includes(keyword)
-      );
+        categoryName.includes(keyword);
+
+      const matchesCategory =
+        !selectedCategory ||
+        Number(product.category_id) === Number(selectedCategory);
+
+      return matchesKeyword && matchesCategory;
     });
-  }, [products, searchKeyword, categories]);
+  }, [products, searchKeyword, selectedCategory, categories]);
 
   if (
     !currentUser ||
@@ -698,31 +701,63 @@ function AdminProductPage() {
             </div>
 
             <strong>
-              {searchKeyword.trim()
+              {searchKeyword.trim() || selectedCategory
                 ? `${filteredProducts.length}/${products.length} sản phẩm`
                 : `${products.length} sản phẩm`}
             </strong>
           </div>
 
-          <div className="admin-product-search-box">
-            <span className="admin-product-search-icon">🔎</span>
+          <div className="admin-product-filter-bar">
+            <div className="admin-product-search-box">
+              <span className="admin-product-search-icon">🔎</span>
 
-            <input
-              type="text"
-              className="admin-product-search-input"
-              placeholder="Tìm sản phẩm theo tên hoặc danh mục..."
-              value={searchKeyword}
-              onChange={(event) => setSearchKeyword(event.target.value)}
-            />
+              <input
+                type="text"
+                className="admin-product-search-input"
+                placeholder="Tìm sản phẩm theo tên..."
+                value={searchKeyword}
+                onChange={(event) => setSearchKeyword(event.target.value)}
+              />
 
-            {searchKeyword && (
+              {searchKeyword && (
+                <button
+                  type="button"
+                  className="admin-product-search-clear"
+                  onClick={() => setSearchKeyword("")}
+                  aria-label="Xóa nội dung tìm kiếm"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+
+            <select
+              className="admin-product-category-filter"
+              value={selectedCategory}
+              onChange={(event) => setSelectedCategory(event.target.value)}
+            >
+              <option value="">Tất cả danh mục</option>
+
+              {categories.map((category) => (
+                <option
+                  key={category.id}
+                  value={category.id}
+                >
+                  {category.name}
+                </option>
+              ))}
+            </select>
+
+            {(searchKeyword || selectedCategory) && (
               <button
                 type="button"
-                className="admin-product-search-clear"
-                onClick={() => setSearchKeyword("")}
-                aria-label="Xóa nội dung tìm kiếm"
+                className="admin-product-filter-reset"
+                onClick={() => {
+                  setSearchKeyword("");
+                  setSelectedCategory("");
+                }}
               >
-                ×
+                Xóa lọc
               </button>
             )}
           </div>
@@ -736,7 +771,7 @@ function AdminProductPage() {
 
             {products.length > 0 && filteredProducts.length === 0 && (
               <p className="admin-product-empty">
-                Không tìm thấy sản phẩm phù hợp với "{searchKeyword}".
+                Không tìm thấy sản phẩm phù hợp với bộ lọc hiện tại.
               </p>
             )}
 
