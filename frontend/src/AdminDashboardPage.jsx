@@ -381,9 +381,7 @@ function AdminDashboardPage() {
                               ? "Năm"
                               : "Tháng"}
                           </th>
-                          <th>Doanh thu sản phẩm</th>
-                          <th>Phí vận chuyển</th>
-                          <th>Tổng thu</th>
+                          <th>Doanh thu</th>
                         </tr>
                       </thead>
 
@@ -391,16 +389,8 @@ function AdminDashboardPage() {
                         {revenueData.map((item) => (
                           <tr key={item.period}>
                             <td>{item.period}</td>
-                            <td>{formatPrice(item.revenue)}</td>
-                            <td>{formatPrice(item.shipping_fee)}</td>
                             <td>
-                              <strong>
-                                {formatPrice(
-                                  item.total_collected ??
-                                    Number(item.revenue || 0) +
-                                      Number(item.shipping_fee || 0)
-                                )}
-                              </strong>
+                              <strong>{formatPrice(item.revenue)}</strong>
                             </td>
                           </tr>
                         ))}
