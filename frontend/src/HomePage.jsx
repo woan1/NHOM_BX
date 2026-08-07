@@ -306,9 +306,63 @@ function HomePage() {
 
         <div className="nav-wrap">
           <nav className={`container main-nav ${menuOpen ? "open" : ""}`}>
-            <Link className="category-menu" to="/products">
-              ☰ Danh mục sản phẩm
-            </Link>
+            <div className="category-menu-wrapper">
+              <button
+                type="button"
+                className="category-menu"
+                aria-label="Danh mục sản phẩm"
+              >
+                ☰ Danh mục sản phẩm
+                <span className="category-menu-chevron">⌄</span>
+              </button>
+
+              <div className="category-dropdown">
+                <Link
+                  to="/products?category=Laptop"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span className="category-dropdown-icon">💻</span>
+                  <div>
+                    <strong>Laptop</strong>
+                    <small>Máy tính xách tay</small>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/products?category=Phone"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span className="category-dropdown-icon">📱</span>
+                  <div>
+                    <strong>Điện thoại</strong>
+                    <small>Smartphone chính hãng</small>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/products?category=Accessory"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span className="category-dropdown-icon">🎧</span>
+                  <div>
+                    <strong>Phụ kiện</strong>
+                    <small>Tai nghe, sạc, chuột</small>
+                  </div>
+                </Link>
+
+                <Link
+                  to="/products"
+                  className="category-dropdown-all"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span className="category-dropdown-icon">▦</span>
+                  <div>
+                    <strong>Xem tất cả sản phẩm</strong>
+                    <small>Khám phá toàn bộ cửa hàng</small>
+                  </div>
+                </Link>
+              </div>
+            </div>
 
             <Link className="active" to="/" onClick={() => setMenuOpen(false)}>
               Trang chủ
@@ -730,26 +784,47 @@ function HomePage() {
             </article>
 
             <div className="mini-product-grid">
-              {(phoneProducts.length
-                ? phoneProducts
-                : accessoryProducts.length
-                ? accessoryProducts
-                : products.slice(0, 4)
-              ).map((product) => (
-                <article className="mini-product-card" key={`phone-${product.id}`}>
-                  <Link to={`/products/${product.id}`}>
-                    <img
-                      src={product.image_url || product.image || FALLBACK_IMAGE}
-                      alt={product.name}
-                      onError={handleImageError}
-                    />
-                  </Link>
-                  <Link to={`/products/${product.id}`}>{product.name}</Link>
-                  <strong>
-                    {Number(product.price || 0).toLocaleString("vi-VN")}đ
-                  </strong>
-                </article>
-              ))}
+              {[
+                ...phoneProducts,
+                ...accessoryProducts.filter(
+                  (accessory) =>
+                    !phoneProducts.some((phone) => phone.id === accessory.id)
+                ),
+                ...products.filter(
+                  (product) =>
+                    !phoneProducts.some((phone) => phone.id === product.id) &&
+                    !accessoryProducts.some(
+                      (accessory) => accessory.id === product.id
+                    )
+                ),
+              ]
+                .slice(0, 2)
+                .map((product) => (
+                  <article
+                    className="mini-product-card"
+                    key={`phone-${product.id}`}
+                  >
+                    <Link to={`/products/${product.id}`}>
+                      <img
+                        src={
+                          product.image_url ||
+                          product.image ||
+                          FALLBACK_IMAGE
+                        }
+                        alt={product.name}
+                        onError={handleImageError}
+                      />
+                    </Link>
+
+                    <Link to={`/products/${product.id}`}>
+                      {product.name}
+                    </Link>
+
+                    <strong>
+                      {Number(product.price || 0).toLocaleString("vi-VN")}đ
+                    </strong>
+                  </article>
+                ))}
             </div>
           </div>
         </section>
