@@ -1813,19 +1813,29 @@ a {
 }
 
 .mini-product-grid {
+  width: 100%;
+  min-width: 0;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
+  align-items: stretch;
 }
 
 .mini-product-card {
+  position: relative;
+  width: 100%;
+  min-width: 0;
   padding: 16px;
   display: flex;
   flex-direction: column;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 20px;
-  transition: 0.3s ease;
+  overflow: hidden;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease,
+    border-color 0.3s ease;
 }
 
 .mini-product-card:hover {
@@ -1835,35 +1845,60 @@ a {
 }
 
 .mini-product-card > a:first-child {
+  position: relative;
+  width: 100%;
   height: 170px;
-  display: grid;
-  place-items: center;
-  background: #f6f8fc;
+  min-height: 170px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #f8faff 0%, #f1f5fb 100%);
   border-radius: 14px;
+  overflow: hidden;
 }
 
 .mini-product-card img {
   width: 100%;
   height: 100%;
+  max-width: 100%;
+  max-height: 170px;
   padding: 12px;
+  display: block;
   object-fit: contain;
-  transition: 0.3s ease;
+  object-position: center;
+  transition:
+    transform 0.3s ease,
+    filter 0.3s ease;
 }
 
 .mini-product-card:hover img {
-  transform: scale(1.06);
+  transform: scale(1.05);
 }
 
 .mini-product-card > a:nth-child(2) {
+  min-height: 42px;
   margin-top: 14px;
+  display: -webkit-box;
+  color: var(--text);
   font-size: 14px;
   font-weight: 700;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  transition: color 0.2s ease;
+}
+
+.mini-product-card > a:nth-child(2):hover {
+  color: var(--primary);
 }
 
 .mini-product-card strong {
   margin-top: 9px;
   color: var(--primary);
   font-size: 17px;
+  font-weight: 800;
 }
 
 .gaming-banner {
@@ -2105,6 +2140,15 @@ a {
   .mini-product-grid,
   .testimonial-grid {
     grid-template-columns: 1fr;
+  }
+
+  .mini-product-card > a:first-child {
+    height: 220px;
+    min-height: 220px;
+  }
+
+  .mini-product-card img {
+    max-height: 220px;
   }
 
   .gaming-banner {

@@ -78,7 +78,7 @@ function HomePage() {
           ? response.data
           : response.data?.products || [];
 
-        setProducts(productData.slice(0, 5));
+        setProducts(productData);
       } catch (error) {
         console.error(
           "Lỗi lấy sản phẩm từ API:",
@@ -565,7 +565,7 @@ function HomePage() {
                     <div className="skeleton skeleton-button" />
                   </div>
                 ))
-              : products.map((product, index) => (
+              : products.slice(0, 5).map((product, index) => (
                   <article className="product-card" key={product.id}>
                     <div className="product-badge">
                       {index === 0
@@ -790,15 +790,8 @@ function HomePage() {
                   (accessory) =>
                     !phoneProducts.some((phone) => phone.id === accessory.id)
                 ),
-                ...products.filter(
-                  (product) =>
-                    !phoneProducts.some((phone) => phone.id === product.id) &&
-                    !accessoryProducts.some(
-                      (accessory) => accessory.id === product.id
-                    )
-                ),
               ]
-                .slice(0, 2)
+                .slice(0, 4)
                 .map((product) => (
                   <article
                     className="mini-product-card"
@@ -811,7 +804,7 @@ function HomePage() {
                           product.image ||
                           FALLBACK_IMAGE
                         }
-                        alt={product.name}
+                        alt={product.name || "Sản phẩm"}
                         onError={handleImageError}
                       />
                     </Link>
