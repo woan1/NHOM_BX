@@ -3,7 +3,7 @@
 ## 👥 Thông Tin Thành Viên
 * **Thành viên 1 (Trưởng nhóm):** Nguyễn Thanh Quan - MSSV: 2200007066 (Vai trò: Fullstack / Quản lý chung)
 * **Thành viên 2:** Võ Tấn Phát - MSSV: 2200007239
-* **Thành viên 3:** Đặng Nguyễn Hữu Trí - MSSV: 2200008152
+* **Thành viên 3:** Đặng Nguyễn Hữu Trí - MSSV: 2200008152 (Vai trò: Fullstack / Quản lý chung)
 * **Thành viên 4:** Nguyễn Lê Gia Bảo - MSSV: 2200006147
 * **Thành viên 5:** Trần Tuấn Anh - MSSV:2200004293
 ---
